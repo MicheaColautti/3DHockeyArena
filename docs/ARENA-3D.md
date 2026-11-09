@@ -9,7 +9,7 @@ Serve un browser con WebGL attivo. Se non parte, la pagina lo dice al posto di "
 
 | Regia | Cosa fa |
 | --- | --- |
-| Intro | Vista aerea dell'esterno e dei dintorni, scheda con arena e squadra di casa. Dopo 14 secondi, o con "Entra nell'arena", la telecamera entra dal tetto e parte il tour. |
+| Intro | Vista aerea dell'esterno e dei dintorni, scheda con arena e squadra di casa. Circa 9 secondi di giorno, 7 di tramonto e 10 di notte con facciate, finestre, lampioni, fari delle auto e piste all'aperto accese; poi (o con "Entra nell'arena") la telecamera entra dal tetto e parte il tour. Le durate sono in `INTRO` in `engine.js`. |
 | Formazioni | Telecamera fissa, niente cubo. Le due squadre sono separate (casa a sinistra, ospiti a destra) e guardano la telecamera. In basso la tabella della linea con il selettore 1ª–4ª. |
 | Tour | La telecamera gira dentro l'arena e le linee cambiano da sole ogni 9 secondi. Ogni 7 secondi compare una tabella: arena, ultimi incontri, head to head, squadre a confronto, top scorer. |
 | Esplora | Telecamera libera; dall'alto l'arena si vede in sezione. |
@@ -38,11 +38,13 @@ Lati: `north` = lato lungo lontano, `south` = lato lungo delle panchine, `west`/
 - `corners`: `false` (aperti), `true`, oppure `{ west: 'end' }` se la curva avvolge gli angoli.
 - `home`: dove sta la curva di casa (`side`, `from`, `to`, `tier`). Non è sempre dietro una porta: a Berna è un lato lungo.
 - `standing`: altri settori in piedi di casa (es. Curva San Salvatore a Lugano).
-- `guest`: settore ospiti. Può stare sulla stessa curva della squadra di casa (Kloten, Rapperswil).
-- `exterior`: forma (`rect`, `octagon`, `rounded`), facciata, tetto (`flat`, `shed`, `barrel`, `pyramid`, `star`), dintorni (`rail`, `road`, `motorway`, `river`, `runway`, `parking`, `pitch`, `stadium`, `pool`, `hall`, `rink2`, `garage`, `city`, `gardens`), alberi e montagne.
+- `guest`: settore ospiti. Può stare sulla stessa curva della squadra di casa (Kloten, Rapperswil) o sullo stesso lato lungo (Berna). `corner: 'south'` lo prolunga nell'angolo verso quel lato; `standing: true` lo disegna in piedi anche dentro un anello a sedere (Langnau, Zugo, Bienne).
+- `roof` (interno): `truss`, `flat`, `botta`, `slats` (travi scure e doghe chiare), `wood-truss` (capriate in legno), `vault` (volta ribassata), `wood-arch`, `wood-gothic`, `wood-cross` (volte incrociate). `steel` colora travi e capriate, `glow` accende di colore le travi (Losanna).
+- `style.upperSeats`: colore delle file più alte (Kloten). `extras`: `ring` (anello sospeso, Friburgo), `pennants` (gagliardetti, Zurigo), `timberWalls` (pareti a telaio di legno, Porrentruy), `glassGables`. `cube.round`: tabellone rotondo (Rapperswil).
+- `exterior`: forma (`rect`, `octagon`, `rounded`); facciata (`slots`, `mesh`, `panels`, `hslats`, `pleats`, `bands`, `bronze`, `struts`, `glass`, `fins`, `wood`, `concrete`) con `uScale` (metri coperti da un giro di texture), `glow`/`line`/`wash`/`nightColors` per le luci di sera e `overhang` per una fascia superiore sporgente; tetto (`flat`, `shed`, `barrel` con `inset`, `hip`, `canopy`, `pyramid`, `star`); dintorni (`rail`, `road`, `motorway`, `river`, `runway`, `parking`, `pitch`, `stadium`, `icerink`, `pool`, `hall`, `rink2`, `garage`, `tower`, `boulders`, `slope`, `city`, `gardens`), alberi e montagne. `ground: 'snow'` per Davos.
 - `verify`: cosa resta da verificare sul posto.
 
-Il rilievo con le fonti è in [ARENE-RILIEVO.md](ARENE-RILIEVO.md). Settore ospiti ancora da verificare: Berna, Ginevra, Losanna, Zurigo, Zugo, Ajoie.
+Il rilievo con le fonti è in [ARENE-RILIEVO.md](ARENE-RILIEVO.md). I settori ospiti seguono le piantine e le foto annotate raccolte per arena; resta da verificare solo Kloten.
 
 ## Dati veri
 

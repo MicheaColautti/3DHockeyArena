@@ -110,3 +110,23 @@ Convenzione del modello 3D: curva di casa a ovest (sinistra), tribuna "nord" = l
 | Swiss Life Arena | **Scatola quadrata con lucernari a shed sul tetto** | Fascio di binari a sud, orti urbani a ovest |
 | OYM hall | Grande hall rettangolare scura con fotovoltaico + seconda pista | Piazza, campo da calcio a nord |
 | Raiffeisen Arena | Volume lungo, tetto fotovoltaico | Ferrovia a nord, campi a sud |
+
+## Aggiornamento dalle foto (novembre 2026)
+Fonte: cartella di foto e piantine annotate raccolta per ogni arena (esterni, interni, settore ospiti segnato a mano). Dove contraddice il rilievo sopra, vale questa tabella.
+
+| Arena | Settore ospiti | Interno | Esterno |
+| --- | --- | --- | --- |
+| Gottardo Arena | Curva opposta, angolo sinistro (visto dalla curva) | Volta ribassata con archi in acciaio, sedili blu | Scatola scura con feritoie, piano terra vetrato, volta a botte a riquadri dentro il bordo; aerodromo, parcheggio grigio, autostrada e versante boscoso |
+| Cornèr Arena | Accanto alla Curva San Salvatore, verso il lato lungo lontano | Grandi travi chiare incrociate, sedili scuri | Capannone dal tetto appena arcuato, corpo basso scuro davanti, pendio alberato a ridosso di una testata |
+| Raiffeisen Arena | Angolo della curva opposta al kop | Capriate in legno a triangoli, pareti a telaio di legno, settori gialli | Prisma basso a doghe grigie, tetto con pannelli, corpo basso con accenti gialli |
+| PostFinance Arena | Stehplatz Gast in fondo alla Stehrampe, sullo stesso lato lungo | Volta con archi scuri e lucernario | Scatola a pannelli chiari, volta bianca dentro un bordo piano; di sera azzurra e bianca |
+| Tissot Arena | Angolo destro della curva opposta, in piedi dietro il vetro | Tribune grigie, travi metalliche | Complesso allungato con lo stadio di calcio, volumi bianchi spigolosi lungo il fianco |
+| VAT Arena | Settore S12 (lato lungo principale, verso est) | Volte incrociate in legno, sedili blu | Falde incrociate innevate, timpani vetrati dorati di sera, pista all'aperto |
+| BCF Arena | Angolo destro della curva opposta | Gradinate scure, anello luminoso sospeso | Due scatole sovrapposte a rete metallica a rombi, blu di sera con linea ambra |
+| Vernets | Testata opposta, angolo verso il lato lungo lontano | Travi scure e doghe chiare | Tetto chiaro sporgente su puntoni inclinati, vetrate, parcheggio davanti |
+| Stimo Arena | Invariato (lato corto in piedi diviso con la curva di casa) | Sedili blu, file alte rosse | Tetto a padiglione grigio, corpo basso con terrazza, bosco |
+| Emmental Versicherung Arena | Stehplatz Gast nell'angolo della curva opposta (W3) | Archi in legno chiaro | Lato lungo a montanti sottili, tetto scuro convesso con pannelli, corpo basso con tetto verde, versante boscoso |
+| Vaudoise aréna | Spicchio destro della curva opposta, sull'angolo | Sedili rossi, travi accese di rosso | Corpi bassi arrotondati a fasce bianche, tetto rosso con pannelli, pista all'aperto, binari |
+| SGKB Arena | Metà del lato corto in piedi (Gäste), l'altra metà Heim | Capriate rosse, tabellone rotondo, sedili rossi e blu | Blocco bianco a doghe, corpo basso in legno scuro, sala di allenamento accanto |
+| Swiss Life Arena | Angolo della testata opposta alla Heim, verso le panchine | Sedili scuri, cubo grande, gagliardetti | Facciata a pieghe con bordo ondulato e oblò, rossa-bianca-blu di sera, terrazza, binari |
+| OYM hall | Stehplatz Gäste 127–128 sulla testata opposta | Sedili blu su due anelli | Volume color bronzo sotto una copertura sporgente che si alza a punta, torre alta accanto |
