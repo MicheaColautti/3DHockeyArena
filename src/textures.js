@@ -1,7 +1,7 @@
 // Texture disegnate su canvas (ghiaccio, LED, striscioni, bandiere, maglie) e materiali animati.
 import * as THREE from 'three';
-import { TEAMS } from './teams.js?v=69';
-import { RINK, FONT, seeded, lum, canvas, texture, drawLogo, fitText } from './common.js?v=69';
+import { TEAMS } from './teams.js?v=74';
+import { RINK, FONT, seeded, lum, canvas, texture, drawLogo, fitText } from './common.js?v=74';
 
 /* ---------- texture ---------- */
 

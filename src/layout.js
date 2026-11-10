@@ -2,7 +2,7 @@
 // Convenzione: x lungo la pista, z in larghezza. Nord = z < 0 (lato lontano dalla telecamera), sud = z > 0 (panchine).
 // Ovest = x < 0, est = x > 0. Lungo una sezione t va da 0 a 1: da ovest a est sui lati lunghi, da nord a sud sui lati corti.
 
-import { RINK } from './common.js?v=69';
+import { RINK } from './common.js?v=74';
 
 export const SIDES = ['north', 'south', 'west', 'east'];
 
@@ -159,6 +159,7 @@ export function samplePolyline(pts, spacing, rand, jitter = 0.1) {
 export function inZone(S, t, R, z) {
   if (!z) return false;
   if (z.tier != null && z.tier !== R.tier) return false;
+  if (z.rowFrom != null && R.index < z.rowFrom) return false; // settore che non arriva al ghiaccio: davanti restano posti normali
   if (S.kind !== 'straight') {
     if (z.corner) return (S.end === z.side && S.side === z.corner) || (S.side === z.side && S.end === z.corner);
     return S.wrap && S.end === z.side && z.from == null && z.to == null;

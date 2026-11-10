@@ -7,14 +7,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { TEAMS } from './teams.js?v=69';
-import { ARENAS } from './arenas.js?v=69';
-import { POSITIONS, placeholderLineup } from './lineups.js?v=69';
-import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=69';
-import { iceTexture, boardsTexture, ledTexture, suitesTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=69';
-import { lambert, disposeObject, makePlayer } from './players.js?v=69';
-import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=69';
-import { buildExterior } from './exterior.js?v=69';
+import { TEAMS } from './teams.js?v=74';
+import { ARENAS } from './arenas.js?v=74';
+import { POSITIONS, placeholderLineup } from './lineups.js?v=74';
+import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=74';
+import { iceTexture, boardsTexture, ledTexture, suitesTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=74';
+import { lambert, disposeObject, makePlayer } from './players.js?v=74';
+import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=74';
+import { buildExterior } from './exterior.js?v=74';
 
 export { RINK };
 const NEUTRALS = ['#2b2f36', '#3c4048', '#56606b', '#e6e6e6', '#1d2a44', '#5b4636', '#8a8f99', '#1a1a1a', '#6f7f8f', '#a33a3a', '#3f5f3f'];
@@ -298,7 +298,7 @@ export class ArenaView {
   buildStands() {
     const A = this.A, st = A.style, { sections } = this.layout, rand = seeded(A.team + 'stands');
     const conc = color(st.concrete), riser = color(st.riser), seats = st.seats.map(color), terrace = color(st.concrete).multiplyScalar(1.12), floorC = color(st.floor).lerp(conc, 0.4);
-    const rails = color('#c7ccd2'), fasciaC = color(TEAMS[A.team].primary).lerp(color('#111'), 0.35), aisle = conc.clone().lerp(color('#ffffff'), 0.18), wedgeFace = color(st.wedgeFace || '#d9d6cf');
+    const rails = color('#c7ccd2'), fasciaC = color(TEAMS[A.team].primary).lerp(color('#111'), 0.35), aisle = st.aisle ? color(st.aisle) : conc.clone().lerp(color('#ffffff'), 0.18), wedgeFace = color(st.wedgeFace || '#d9d6cf');
     const M = new Mesher(), lerp2 = (a, b, u) => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u];
     let roofBase = 0;
     this.vipFronts = [];
@@ -559,6 +559,11 @@ export class ArenaView {
           this.root.add(new THREE.Mesh(stripGeometry(readable(sectionLine(S, b.d - 0.07)), b.y1 - 2.0, b.y1 - 1.85, { uScale: 22 }), new THREE.MeshBasicMaterial({ color: '#f4f4f2', side: THREE.DoubleSide })));
         } else if (b.kind === 'led') this.root.add(new THREE.Mesh(stripGeometry(l, Math.max(b.y0 + 0.15, b.y1 - 1.05), b.y1 - 0.12, { uScale: 22 }), ledMat));
         else if (b.kind === 'suites') this.root.add(new THREE.Mesh(stripGeometry(l, b.y0 + 0.45, b.y1 - 0.4, { uScale: 6 }), suitesMat));
+        // 'white' (Friburgo): fascia bianca luminosa sul fronte dell'anello alto, con un filo rosso sotto (style.detail).
+        else if (b.kind === 'white') {
+          this.root.add(new THREE.Mesh(stripGeometry(l, b.y1 - 0.75, b.y1 - 0.15, { uScale: 10 }), new THREE.MeshBasicMaterial({ color: '#f3f5f7', side: THREE.DoubleSide })));
+          if (A.style.detail) this.root.add(new THREE.Mesh(stripGeometry(readable(sectionLine(S, b.d - 0.07)), b.y1 - 0.95, b.y1 - 0.8, { uScale: 10 }), new THREE.MeshBasicMaterial({ color: A.style.detail, side: THREE.DoubleSide })));
+        }
         else if (b.kind === 'team') this.root.add(new THREE.Mesh(stripGeometry(l, b.y0 + 0.3, b.y1 - 0.3, { uScale: 10 }), teamMat));
       }
       if (A.led.rim) this.root.add(new THREE.Mesh(stripGeometry(readable(sectionLine(S, P.depth - 0.06)), P.top + 0.25, P.top + 1.15, { uScale: 22 }), ledMat));
@@ -602,6 +607,18 @@ export class ArenaView {
     }
     const X = A.extras || {};
     // Anello sospeso sotto le travi (Friburgo): fascia scura con il bordo inferiore luminoso.
+    // Cabine vetrate negli angoli (Friburgo): sul corridoio tra i due anelli dei cunei, vetro azzurrino con il telaio chiaro.
+    if (X.cornerBoxes) for (const S of sections) {
+      if (S.kind !== 'wedge' || !S.profile.floors.length) continue;
+      const f = S.profile.floors[0], p = sectionPoint(S, 0.5, (f.d0 + f.d1) / 2), w = X.cornerBoxes.w ?? 7, h = X.cornerBoxes.h ?? 2.8, dd = Math.max(1.6, f.d1 - f.d0 + 0.8);
+      const g = new THREE.Group(); g.position.set(p.x, f.h, p.z); g.rotation.y = Math.atan2(p.nx, p.nz);
+      const glass = new THREE.Mesh(new THREE.BoxGeometry(w, h, dd), new THREE.MeshLambertMaterial({ color: '#bcd8ea', transparent: true, opacity: 0.45, emissive: color('#6f9fc4'), emissiveIntensity: 0.35, depthWrite: false }));
+      glass.position.y = h / 2; g.add(glass);
+      const fr = new Mesher(), k = color('#e9ecef');
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) fr.box(sx * w / 2, h / 2, sz * dd / 2, 0.12, h, 0.12, k);
+      fr.box(0, h, 0, w + 0.1, 0.2, dd + 0.1, k); fr.box(0, h + 0.55, -dd / 2 - 0.02, w * 0.5, 0.7, 0.06, color(X.cornerBoxes.label || '#1f5aa8'));
+      g.add(fr.mesh()); this.root.add(g);
+    }
     if (X.ring) {
       const ring = roundedRect(X.ring.rx, X.ring.rz, Math.min(X.ring.rx, X.ring.rz) * 0.9, 12), y = this.lightY + 0.6;
       this.root.add(new THREE.Mesh(stripGeometry(ring, y - 1.6, y, { closed: true, uScale: 6 }), new THREE.MeshLambertMaterial({ color: '#2a2c31', side: THREE.DoubleSide })));
@@ -642,7 +659,8 @@ export class ArenaView {
     const rand = seeded(home + away + 'crowd'), fans = [], flags = { home: [], away: [] };
     const density = this.quality === 'high' ? 1 : 0.75;
     const mixes = {
-      curve: [[TH.primary, 50], [TH.secondary, 30], [TH.accent, 14], ['#1a1a1a', 6]],
+      // TH.extra: un colore in più a piccole dosi (Friburgo: qualche tocco di rosso nel blu, bianco e nero).
+      curve: [[TH.primary, 50], [TH.secondary, 30], [TH.accent, 14], ['#1a1a1a', 6], ...(TH.extra ? [[TH.extra, 5]] : [])],
       standing: [[TH.primary, 42], [TH.secondary, 26], [TH.accent, 10], ...NEUTRALS.map(n => [n, 22 / NEUTRALS.length])],
       guest: [[TA.primary, 52], [TA.secondary, 32], [TA.accent, 16]],
       side: [[TH.primary, 30], [TH.secondary, 14], ...NEUTRALS.map(n => [n, 56 / NEUTRALS.length])],
@@ -677,10 +695,12 @@ export class ArenaView {
     const G = A.guest, S = sectionByKey(this.layout, G.side);
     if (S) {
       const tier = G.tier ?? 0, band = tier > 0 ? S.profile.bands.find(b => b.tier === tier) : null;
-      const d = band ? band.d - 0.08 : -0.06, y1 = band ? band.y1 - 0.1 : S.profile.base - 0.1, y0 = band ? Math.max(band.y0 + 0.2, y1 - 1.3) : Math.max(0.35, y1 - 1.5);
+      // rowFrom: il settore parte più in alto (davanti ci sono posti normali); lo striscione fa da parapetto sulla prima fila ospite.
+      const RF = G.rowFrom != null ? S.profile.rows[G.rowFrom] : null;
+      const d = RF ? RF.d - 0.08 : band ? band.d - 0.08 : -0.06, y1 = RF ? RF.h + 1.05 : band ? band.y1 - 0.1 : S.profile.base - 0.1, y0 = RF ? RF.below + 0.05 : band ? Math.max(band.y0 + 0.2, y1 - 1.3) : Math.max(0.35, y1 - 1.5);
       const l = readable(sectionLine(S, d, (G.from ?? 0) + 0.02, (G.to ?? 1) - 0.02)), len = Math.hypot(l.at(-1)[0] - l[0][0], l.at(-1)[1] - l[0][1]);
       this.awayLayer.add(new THREE.Mesh(stripGeometry(l, y0, y1, { uScale: len }), new THREE.MeshLambertMaterial({ map: bannerTexture(away, TA.name, 'Settore ospiti'), side: THREE.DoubleSide })));
-      const rows = S.profile.rows.filter(R => R.tier === tier), net = new Mesher(), k = color('#cfd6dd');
+      const rows = S.profile.rows.filter(R => R.tier === tier && R.index >= (G.rowFrom ?? 0)), net = new Mesher(), k = color('#cfd6dd');
       if (rows.length) for (const t of [G.from ?? 0, G.to ?? 1]) {
         if (t <= 0.001 || t >= 0.999) continue;
         const a = sectionPoint(S, t, rows[0].d), b = sectionPoint(S, t, rows.at(-1).d + rows.at(-1).depth);
