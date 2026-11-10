@@ -2,7 +2,7 @@
 // Convenzione: x lungo la pista, z in larghezza. Nord = z < 0 (lato lontano dalla telecamera), sud = z > 0 (panchine).
 // Ovest = x < 0, est = x > 0. Lungo una sezione t va da 0 a 1: da ovest a est sui lati lunghi, da nord a sud sui lati corti.
 
-import { RINK } from './common.js?v=74';
+import { RINK } from './common.js?v=78';
 
 export const SIDES = ['north', 'south', 'west', 'east'];
 

@@ -1,8 +1,8 @@
 // Statistiche FINTE per la demo del tour: stessa forma che avranno i dati veri.
 // Con i dati reali (site/data/hockey.json) basterà calcolare questi stessi campi e passarli alla pagina.
 
-import { TEAMS } from './teams.js?v=74';
-import { seeded } from './common.js?v=74';
+import { TEAMS } from './teams.js?v=78';
+import { seeded } from './common.js?v=78';
 
 const pad = n => String(n).padStart(2, '0');
 

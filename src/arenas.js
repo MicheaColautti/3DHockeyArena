@@ -46,7 +46,7 @@ export const ARENAS = {
     light: { tint: '#eef3ff', ambient: 1, key: 1.1 },
     exterior: { shape: 'rect', wall: '#85878b', facade: 'slots', line: '#3c64ff', uScale: 22, height: 15, podium: { h: 3.5, out: 7, color: '#bdbcb7' }, recess: { h: 4, in: 2.5 },
       roof: 'barrel', roofMat: 'solar', inset: 3, rimMat: 'membrane', roofColor: '#9a9c9e', caps: '#1d2025', rise: 5.5, signAt: 0.78, sideGlow: '#3d6bff', ground: 'alpine', meadows: { r: 560, cell: 44 }, mountains: 26, trees: 60, conifers: true,
-      features: [{ type: 'parking', side: 'east', dist: 10, w: 60, len: 90, cars: 80 }, { type: 'parking', side: 'south', dist: 10, w: 9, len: 150, cars: 45 }, { type: 'runway', side: 'south', dist: 45, len: 300, offset: 0 }, { type: 'hall', side: 'south', dist: 82, offset: 160, w: 16, len: 34, h: 7, color: '#e3e1dc', roof: 'gable', roofColor: '#6a5a4a', rise: 2 }, { type: 'hall', side: 'south', dist: 82, offset: 205, w: 14, len: 22, h: 6, color: '#f0eee9', roof: 'gable', roofColor: '#5a4a3c', rise: 2 },
+      features: [{ type: 'walkers', side: 'north', dist: 0.8, w: 5, len: 90, n: 25, y: 3.5 }, { type: 'walkers', side: 'south', dist: 0.8, w: 5, len: 110, n: 40, y: 3.5 }, { type: 'parking', side: 'east', dist: 10, w: 60, len: 90, cars: 80 }, { type: 'parking', side: 'south', dist: 10, w: 9, len: 150, cars: 45 }, { type: 'runway', side: 'south', dist: 45, len: 300, offset: 0 }, { type: 'hall', side: 'south', dist: 82, offset: 160, w: 16, len: 34, h: 7, color: '#e3e1dc', roof: 'gable', roofColor: '#6a5a4a', rise: 2 }, { type: 'hall', side: 'south', dist: 82, offset: 205, w: 14, len: 22, h: 6, color: '#f0eee9', roof: 'gable', roofColor: '#5a4a3c', rise: 2 },
         { type: 'river', side: 'north', dist: 56, w: 12, len: 1400 }, { type: 'silos', side: 'west', dist: 140, offset: 30 },
         { type: 'motorway', side: 'north', dist: 26, len: 420, offset: 20, tunnels: ['start', 'end'] }, { type: 'slope', side: 'north', dist: 62, angle: 0.62, depth: 340, trees: 900, houses: 6 }] },
   },
@@ -71,9 +71,9 @@ export const ARENAS = {
     cube: { w: 6, h: 3.4 },
     style: { concrete: '#5c5f64', riser: '#4a4d52', wall: '#2c2f34', floor: '#24262a', seats: ['#25282d', '#25282d', '#c98a1c'], seatPattern: 'rows' },
     light: { tint: '#fff6e6', ambient: 1, key: 1 },
-    exterior: { shape: 'rect', wall: '#d3cfc6', facade: 'hallglass', uScale: 30, roof: 'barrel', roofMat: 'metal', roofColor: '#9ea2a6', rise: 4.5, eaveOut: 1.2, capsGlass: true, glow: '#f6f2e4', ledges: [0.5, 0.995], ledgeColor: '#e6e3dc',
+    exterior: { shape: 'rect', wall: '#d3cfc6', facade: 'hallglass', uScale: 30, roof: 'barrel', roofMat: 'metal', roofColor: '#9ea2a6', rise: 7.5, eaveOut: 1.2, capsGlass: true, glow: '#f6f2e4', ledges: [0.5, 0.995], ledgeColor: '#e6e3dc',
       ground: 'urban', mountains: 22, mountainDist: 470, trees: 50, conifers: false,
-      features: [
+      features: [{ type: 'walkers', side: 'west', dist: 2, w: 20, len: 60, n: 30 }, { type: 'walkers', side: 'south', dist: 1, w: 12, len: 100, n: 40 }, 
         { type: 'hall', side: 'south', dist: 14, w: 36, len: 64, h: 12, color: '#3b3f45', roof: 'gable', solar: true, rise: 2.5, offset: -6 },
         { type: 'plaza', side: 'south', dist: 0, w: 14, len: 120, color: '#cfcbc2' },
         { type: 'plaza', side: 'west', dist: 0, w: 40, len: 70, color: '#c9c5bc' },
@@ -114,7 +114,7 @@ export const ARENAS = {
     light: { tint: '#ffffff', ambient: 1.15, key: 1 },
     extras: { timberWalls: true },
     exterior: { shape: 'rect', wall: '#8f9296', facade: 'hslats', accent: '#f2c200', uScale: 20, roof: 'flat', roofMat: 'solar', ground: 'grass', trees: 90, conifers: false,
-      features: [{ type: 'road', side: 'south', dist: 12 }, { type: 'hall', side: 'east', dist: 0, w: 28, len: 44, h: 8, color: '#8f9296', top: '#b9bcbf' }, { type: 'parking', side: 'west', dist: 8, w: 40, len: 60, cars: 40 },
+      features: [{ type: 'walkers', side: 'north', dist: 2, w: 10, len: 80, n: 25 }, { type: 'walkers', side: 'south', dist: 1, w: 10, len: 80, n: 35 }, { type: 'road', side: 'south', dist: 12 }, { type: 'hall', side: 'east', dist: 0, w: 28, len: 44, h: 8, color: '#8f9296', top: '#b9bcbf' }, { type: 'parking', side: 'west', dist: 8, w: 40, len: 60, cars: 40 },
         { type: 'rail', side: 'north', dist: 30, tracks: 2 }, { type: 'city', side: 'north', dist: 70, n: 34, height: 10 }, { type: 'city', side: 'west', dist: 60, n: 20, height: 9 }, { type: 'slope', side: 'south', dist: 120, angle: 0.18, depth: 300, trees: 250, conifers: false, houses: 10 }] },
   },
   SCB: {
@@ -150,7 +150,7 @@ export const ARENAS = {
         top: [[0, 9], [0.06, 11], [0.14, 7], [0.19, 7], [0.25, 12], [0.2715, 10], [0.4, 4], [0.5, 2.5], [0.7715, 2.5], [0.88, 5], [1, 9]],
         fold: [[0, 0.42], [0.1, 0.7], [0.2, 0.32], [0.2715, 0.56], [0.4, 0.28], [0.5, 0.49], [0.7715, 0.49], [0.88, 0.28], [1, 0.42]] },
       block: { depth: 22, h: 'hall', ground: 7, over: 6 },
-      features: [
+      features: [{ type: 'walkers', side: 'east', dist: 11, w: 8, len: 100, n: 30 }, { type: 'walkers', side: 'south', dist: 2, w: 16, len: 140, n: 50 }, 
         { type: 'ring', dist: 22 },
         { type: 'motorway', side: 'east', dist: 62, len: 1400, tunnels: ['start', 'end'] },
         { type: 'hall', side: 'west', dist: 42, w: 60, len: 120, h: 16, color: '#c3c7cb', top: '#a8705a' },
@@ -182,7 +182,7 @@ export const ARENAS = {
     style: { concrete: '#9a9da1', riser: '#808388', wall: '#2c2f34', floor: '#222428', seats: ['#8e9196', '#83868b'], seatPattern: 'blocks' },
     light: { tint: '#f2f6ff', ambient: 1, key: 1.05 },
     exterior: { shape: 'rect', wall: '#9aa0a6', facade: 'bands', uScale: 20, roof: 'flat', roofMat: 'solar', ground: 'grass', trees: 60, conifers: false,
-      features: [{ type: 'stadium', side: 'west', dist: 0, turn: true, color: '#8a9096' }, { type: 'boulders', side: 'south', dist: 5, len: 300, offset: -70 }, { type: 'pitch', side: 'north', dist: 24 }, { type: 'pitch', side: 'south', dist: 40, offset: 90 },
+      features: [{ type: 'walkers', side: 'east', dist: 2, w: 8, len: 80, n: 25 }, { type: 'walkers', side: 'north', dist: 2, w: 10, len: 100, n: 40 }, { type: 'stadium', side: 'west', dist: 0, turn: true, color: '#8a9096' }, { type: 'boulders', side: 'south', dist: 5, len: 300, offset: -70 }, { type: 'pitch', side: 'north', dist: 24 }, { type: 'pitch', side: 'south', dist: 40, offset: 90 },
         { type: 'parking', side: 'east', dist: 12, w: 50, len: 90, cars: 70 }, { type: 'road', side: 'south', dist: 90 }, { type: 'slope', side: 'north', dist: 260, angle: 0.35, depth: 300, trees: 600, conifers: false }, { type: 'city', side: 'south', dist: 120, n: 30 }] },
   },
   HCD: {
@@ -206,7 +206,7 @@ export const ARENAS = {
     light: { tint: '#fff1dc', ambient: 1.05, key: 1 },
     extras: { glassGables: true },
     exterior: { shape: 'rect', wall: '#3a2c22', facade: 'glass', glow: '#ffc879', roof: 'star', eaves: 9, rise: 24, roofColor: '#e8edf2', eaveColor: '#5a3a26', ground: 'snow', mountains: 30, trees: 200, conifers: true, haloColor: '#ffd59a',
-      features: [{ type: 'icerink', side: 'south', dist: 26, w: 70, len: 120, track: true, lines: false }, { type: 'hall', side: 'east', dist: 4, w: 22, len: 90, h: 9, color: '#6d4a36', top: '#eef2f5' }, { type: 'parking', side: 'north', dist: 10, w: 30, len: 70, cars: 40 },
+      features: [{ type: 'walkers', side: 'west', dist: 2, w: 10, len: 70, n: 25 }, { type: 'walkers', side: 'south', dist: 2, w: 12, len: 90, n: 40 }, { type: 'icerink', side: 'south', dist: 26, w: 70, len: 120, track: true, lines: false }, { type: 'hall', side: 'east', dist: 4, w: 22, len: 90, h: 9, color: '#6d4a36', top: '#eef2f5' }, { type: 'parking', side: 'north', dist: 10, w: 30, len: 70, cars: 40 },
         { type: 'road', side: 'south', dist: 130 }, { type: 'city', side: 'west', dist: 50, n: 30, height: 14 }, { type: 'city', side: 'south', dist: 150, n: 34, height: 14 }, { type: 'slope', side: 'north', dist: 120, angle: 0.5, depth: 320, trees: 700, houses: 12 }] },
   },
   HCFG: {
@@ -239,10 +239,11 @@ export const ARENAS = {
     exterior: { shape: 'rect', wall: '#b9bdc2', glow: '#3d7bff', line: '#ffb04a', signColor: '#1d2024', roofMat: 'metal', roofColor: '#9ea3a8', ground: 'urban', trees: 90, conifers: false, haloColor: '#bcd2ff',
       stack: { base: { h: 8, out: 4 }, top: { from: 15, out: 8 }, mid: { color: '#8a9096' }, front: { from: 24, to: 8 }, canopy: { h: 6.6, depth: 12 }, drum: { r: 6.5, x: 11, z: 2 },
         labels: ['VIP Sud', 'Entrée principale', 'Fanshop', 'Tickets', 'SportCafé', 'VIP Nord'] },
-      features: [
+      features: [{ type: 'walkers', side: 'east', dist: 5, w: 8, len: 80, n: 30 }, 
         { type: 'plaza', side: 'south', dist: 0, w: 46, len: 170, color: '#cfccc4', lampEvery: 16 },
         { type: 'terrace', side: 'south', dist: 6, offset: -96, w: 34, len: 26, h: 3.2, stairs: 'east', stairW: 14 },
         { type: 'road', side: 'south', dist: 48, len: 900 },
+        { type: 'walkers', side: 'south', dist: 14, w: 32, len: 120, n: 60, offset: 4 },
         { type: 'trees', side: 'south', dist: 26, len: 130, n: 9, offset: 10 },
         { type: 'trees', side: 'south', dist: 38, len: 130, n: 9, offset: 14 },
         { type: 'road', side: 'east', dist: 30, len: 700 },
@@ -276,7 +277,7 @@ export const ARENAS = {
     style: { concrete: '#9b9a95', riser: '#83827d', wall: '#3a3b3d', floor: '#2d2c2a', seats: ['#7b2a3b', '#5a5c60'], seatPattern: 'rows' },
     light: { tint: '#fff5e8', ambient: 1, key: 0.95 },
     exterior: { shape: 'rect', wall: '#d4d1c9', facade: 'struts', uScale: 26, roof: 'canopy', canopy: { out: { north: 5, south: 6, west: 1.5, east: 1.5 }, tilt: 1.6, struts: true, thick: 1.5 }, roofColor: '#c9cbcc', ground: 'urban', trees: 50, conifers: false,
-      features: [{ type: 'parking', side: 'south', dist: 10, w: 50, len: 110, cars: 90 }, { type: 'hall', side: 'east', dist: 8, w: 40, len: 60, h: 10, color: '#d9d6cf', top: '#a3a5a8' }, { type: 'river', side: 'north', dist: 70, w: 40 },
+      features: [{ type: 'walkers', side: 'west', dist: 2, w: 10, len: 70, n: 25 }, { type: 'walkers', side: 'south', dist: 1, w: 8, len: 100, n: 40 }, { type: 'parking', side: 'south', dist: 10, w: 50, len: 110, cars: 90 }, { type: 'hall', side: 'east', dist: 8, w: 40, len: 60, h: 10, color: '#d9d6cf', top: '#a3a5a8' }, { type: 'river', side: 'north', dist: 70, w: 40 },
         { type: 'city', side: 'south', dist: 70, n: 50, height: 34 }, { type: 'city', side: 'west', dist: 26, n: 40, height: 28 }, { type: 'city', side: 'east', dist: 60, n: 30, height: 24 }] },
   },
   EHCK: {
@@ -299,7 +300,7 @@ export const ARENAS = {
     style: { concrete: '#868a90', riser: '#6c7076', wall: '#34383e', floor: '#26282c', seats: ['#1f47a0', '#1c4296'], seatPattern: 'blocks', upperSeats: { color: '#c0182c', from: 0.68 } },
     light: { tint: '#f6f8ff', ambient: 1, key: 1 },
     exterior: { shape: 'rect', wall: '#a7abb0', facade: 'glass', uScale: 20, roof: 'hip', roofColor: '#7d8288', rise: 8, eaves: 2, ground: 'grass', trees: 620, forest: true, conifers: false,
-      features: [{ type: 'hall', side: 'south', dist: 0, w: 26, len: 70, h: 7, color: '#9c7f63', top: '#c9c9c4' }, { type: 'pool', side: 'north', dist: 30, offset: 50 }, { type: 'parking', side: 'east', dist: 10, w: 34, len: 60, cars: 40 }, { type: 'road', side: 'south', dist: 40 }] },
+      features: [{ type: 'walkers', side: 'north', dist: 2, w: 10, len: 90, n: 25 }, { type: 'walkers', side: 'west', dist: 2, w: 10, len: 70, n: 35 }, { type: 'hall', side: 'south', dist: 0, w: 26, len: 70, h: 7, color: '#9c7f63', top: '#c9c9c4' }, { type: 'pool', side: 'north', dist: 30, offset: 50 }, { type: 'parking', side: 'east', dist: 10, w: 34, len: 60, cars: 40 }, { type: 'road', side: 'south', dist: 40 }] },
   },
   SCLT: {
     team: 'SCLT', name: 'Emmental Versicherung Arena', formerName: 'Ilfishalle', city: 'Langnau', capacity: 6050, opened: 1975,
@@ -322,7 +323,7 @@ export const ARENAS = {
     style: { concrete: '#94704b', riser: '#775737', wall: '#5a3f27', floor: '#2b241e', seats: ['#b0814f', '#a37547'], seatPattern: 'rows', wood: true },
     light: { tint: '#fff0d8', ambient: 1.05, key: 1 },
     exterior: { shape: 'rect', wall: '#c9cdd1', facade: 'fins', uScale: 14, roof: 'barrel', roofMat: 'dark-solar', roofColor: '#2f3237', rise: 5, caps: '#2d3035', ground: 'grass', trees: 160, conifers: true, mountains: 10,
-      features: [{ type: 'hall', side: 'north', dist: 0, w: 18, len: 80, h: 12, color: '#c9cdd1', top: '#6f8a4f' }, { type: 'road', side: 'north', dist: 22 }, { type: 'parking', side: 'east', dist: 8, w: 30, len: 46, cars: 30 },
+      features: [{ type: 'walkers', side: 'west', dist: 2, w: 10, len: 70, n: 25 }, { type: 'walkers', side: 'south', dist: 2, w: 12, len: 90, n: 35 }, { type: 'hall', side: 'north', dist: 0, w: 18, len: 80, h: 12, color: '#c9cdd1', top: '#6f8a4f' }, { type: 'road', side: 'north', dist: 22 }, { type: 'parking', side: 'east', dist: 8, w: 30, len: 46, cars: 30 },
         { type: 'slope', side: 'south', dist: 22, angle: 0.55, depth: 300, trees: 800, houses: 4 }, { type: 'rail', side: 'north', dist: 50, tracks: 2 }, { type: 'city', side: 'north', dist: 70, n: 30, height: 12 }, { type: 'city', side: 'west', dist: 40, n: 16, height: 10 }] },
   },
   LHC: {
@@ -345,7 +346,7 @@ export const ARENAS = {
     style: { concrete: '#4e525a', riser: '#3d4047', wall: '#1f2227', floor: '#1d1f23', seats: ['#b3121e', '#a10f1a'], seatPattern: 'blocks' },
     light: { tint: '#fff2f2', ambient: 0.95, key: 1.15 },
     exterior: { shape: 'rounded', wall: '#eeece7', facade: 'bands', uScale: 24, roof: 'flat', roofMat: 'terracotta-solar', ground: 'urban', trees: 50, conifers: false, mountains: 16,
-      features: [{ type: 'rail', side: 'north', dist: 14, tracks: 4 }, { type: 'icerink', side: 'east', dist: 14, w: 30, len: 60 }, { type: 'hall', side: 'east', dist: 52, w: 34, len: 70, h: 14, color: '#eeece7', top: '#a5573a' }, { type: 'road', side: 'south', dist: 16 },
+      features: [{ type: 'walkers', side: 'west', dist: 1, w: 8, len: 70, n: 25 }, { type: 'walkers', side: 'south', dist: 2, w: 12, len: 100, n: 45 }, { type: 'rail', side: 'north', dist: 14, tracks: 4 }, { type: 'icerink', side: 'east', dist: 14, w: 30, len: 60 }, { type: 'hall', side: 'east', dist: 52, w: 34, len: 70, h: 14, color: '#eeece7', top: '#a5573a' }, { type: 'road', side: 'south', dist: 16 },
         { type: 'parking', side: 'west', dist: 10, w: 36, len: 60, cars: 40 }, { type: 'city', side: 'north', dist: 60, n: 40, height: 26 }, { type: 'city', side: 'south', dist: 40, n: 40, height: 22 }, { type: 'city', side: 'west', dist: 70, n: 24, height: 20 }] },
   },
   SCRJ: {
@@ -368,7 +369,7 @@ export const ARENAS = {
     style: { concrete: '#8d9197', riser: '#73777d', wall: '#9ea3aa', floor: '#27292d', seats: ['#c4122a', '#1f3f8f'], seatPattern: 'blocks' },
     light: { tint: '#ffffff', ambient: 1.1, key: 1 },
     exterior: { shape: 'rect', wall: '#eef0f1', facade: 'hslats', uScale: 20, roof: 'flat', roofMat: 'membrane', roofColor: '#e8eaec', ground: 'grass', trees: 110, conifers: false,
-      features: [{ type: 'hall', side: 'south', dist: 0, w: 9, len: 44, h: 5, color: '#4a3426', offset: 14 }, { type: 'hall', side: 'east', dist: 10, w: 30, len: 60, h: 11, color: '#f2f3f4', roof: 'gable', solar: true, rise: 4 }, { type: 'pitch', side: 'north', dist: 30 },
+      features: [{ type: 'walkers', side: 'east', dist: 2, w: 8, len: 70, n: 25 }, { type: 'walkers', side: 'north', dist: 2, w: 10, len: 90, n: 35 }, { type: 'hall', side: 'south', dist: 0, w: 9, len: 44, h: 5, color: '#4a3426', offset: 14 }, { type: 'hall', side: 'east', dist: 10, w: 30, len: 60, h: 11, color: '#f2f3f4', roof: 'gable', solar: true, rise: 4 }, { type: 'pitch', side: 'north', dist: 30 },
         { type: 'road', side: 'west', dist: 10 }, { type: 'road', side: 'south', dist: 22 }, { type: 'parking', side: 'east', dist: 50, w: 30, len: 60, cars: 40 }, { type: 'city', side: 'north', dist: 130, n: 60, height: 16 }, { type: 'slope', side: 'north', dist: 150, angle: 0.25, depth: 260, trees: 200, conifers: false, houses: 24 }] },
   },
   ZSC: {
@@ -392,7 +393,7 @@ export const ARENAS = {
     light: { tint: '#ffffff', ambient: 1.1, key: 1.1 },
     extras: { pennants: ['#ffffff', '#1d4fd8', '#e8202a', '#9ec0ff'] },
     exterior: { shape: 'rect', wall: '#d9dbdc', facade: 'pleats', nightColors: ['#e8202a', '#ffffff', '#1d4fd8'], uScale: 72, nightPower: 1.3, roof: 'flat', roofMat: 'dark-solar', ground: 'urban', trees: 60, conifers: false,
-      features: [{ type: 'hall', side: 'north', dist: 0, w: 26, len: 70, h: 12, color: '#d9dbdc', top: '#a89a84', offset: -20 }, { type: 'rail', side: 'south', dist: 18, tracks: 10 }, { type: 'gardens', side: 'west', dist: 12, n: 80, depth: 120 },
+      features: [{ type: 'walkers', side: 'east', dist: 2, w: 10, len: 80, n: 30 }, { type: 'walkers', side: 'south', dist: 2, w: 14, len: 100, n: 50 }, { type: 'hall', side: 'north', dist: 0, w: 26, len: 70, h: 12, color: '#d9dbdc', top: '#a89a84', offset: -20 }, { type: 'rail', side: 'south', dist: 18, tracks: 10 }, { type: 'gardens', side: 'west', dist: 12, n: 80, depth: 120 },
         { type: 'road', side: 'north', dist: 34 }, { type: 'city', side: 'north', dist: 60, n: 40, height: 28 }, { type: 'city', side: 'east', dist: 30, n: 30, height: 26 }] },
   },
   EVZ: {
@@ -415,7 +416,7 @@ export const ARENAS = {
     style: { concrete: '#a0a4aa', riser: '#868a90', wall: '#2c3036', floor: '#282a2e', seats: ['#0d5fa4', '#0a4c86'], seatPattern: 'blocks' },
     light: { tint: '#ffffff', ambient: 1.1, key: 1.05 },
     exterior: { shape: 'rect', wall: '#6b5238', facade: 'bronze', uScale: 24, roof: 'canopy', canopy: { out: { south: 8, west: 5, east: 3, north: 1 }, lift: 9, thick: 1.6 }, roofColor: '#d3d6d9', ground: 'urban', trees: 60, conifers: false, mountains: 12,
-      features: [{ type: 'tower', side: 'west', dist: 8, w: 28, d: 26, h: 81, lean: 7, leanDir: -1 }, { type: 'parking', side: 'south', dist: 14, w: 36, len: 90, cars: 40 }, { type: 'hall', side: 'east', dist: 30, w: 34, len: 50, h: 12, color: '#cfd2d6' },
+      features: [{ type: 'walkers', side: 'north', dist: 2, w: 10, len: 90, n: 25 }, { type: 'walkers', side: 'south', dist: 2, w: 10, len: 90, n: 40 }, { type: 'tower', side: 'west', dist: 8, w: 28, d: 26, h: 81, lean: 7, leanDir: -1 }, { type: 'parking', side: 'south', dist: 14, w: 36, len: 90, cars: 40 }, { type: 'hall', side: 'east', dist: 30, w: 34, len: 50, h: 12, color: '#cfd2d6' },
         { type: 'river', side: 'north', dist: 240, w: 400 }, { type: 'city', side: 'west', dist: 50, n: 36, height: 24 }, { type: 'city', side: 'south', dist: 60, n: 36, height: 20 }, { type: 'slope', side: 'east', dist: 220, angle: 0.3, depth: 300, trees: 300, conifers: false, houses: 30 }] },
   },
 };

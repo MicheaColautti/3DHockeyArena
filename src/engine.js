@@ -7,14 +7,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { TEAMS } from './teams.js?v=74';
-import { ARENAS } from './arenas.js?v=74';
-import { POSITIONS, placeholderLineup } from './lineups.js?v=74';
-import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=74';
-import { iceTexture, boardsTexture, ledTexture, suitesTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=74';
-import { lambert, disposeObject, makePlayer } from './players.js?v=74';
-import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=74';
-import { buildExterior } from './exterior.js?v=74';
+import { TEAMS } from './teams.js?v=78';
+import { ARENAS } from './arenas.js?v=78';
+import { POSITIONS, placeholderLineup } from './lineups.js?v=78';
+import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=78';
+import { iceTexture, boardsTexture, ledTexture, suitesTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=78';
+import { lambert, disposeObject, makePlayer } from './players.js?v=78';
+import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=78';
+import { buildExterior } from './exterior.js?v=78';
 
 export { RINK };
 const NEUTRALS = ['#2b2f36', '#3c4048', '#56606b', '#e6e6e6', '#1d2a44', '#5b4636', '#8a8f99', '#1a1a1a', '#6f7f8f', '#a33a3a', '#3f5f3f'];

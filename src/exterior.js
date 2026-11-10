@@ -4,8 +4,8 @@
 // finisce nella lista `night` restituita, e la vista ne regola l'intensità durante il tramonto.
 
 import * as THREE from 'three';
-import { TEAMS } from './teams.js?v=74';
-import { seeded, color, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect } from './common.js?v=74';
+import { TEAMS } from './teams.js?v=78';
+import { seeded, color, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect } from './common.js?v=78';
 
 const pick3 = (rand, list) => list[Math.floor(rand() * list.length)];
 const GROUND = { urban: '#8e8f88', alpine: '#6f8a55', grass: '#79925a', snow: '#e6ebf0' };
@@ -703,6 +703,8 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, logo, tim
   const flat = (p, c, y = 0.012, m = null) => { const mesh = new THREE.Mesh(new THREE.PlaneGeometry(p.lx, p.lz), m || new THREE.MeshLambertMaterial({ color: c })); mesh.rotation.x = -Math.PI / 2; mesh.position.set(p.cx, y, p.cz); group.add(mesh); return mesh; };
   const along = (p, s, o) => p.along === 'x' ? [p.cx + s, p.cz + o] : [p.cx + o, p.cz + s];
   const cars = [], treeSpots = [], M = new Mesher(), slopeH = [];
+  // Cose che si muovono (auto, camion, pedoni): percorso u → [x, z, yaw], lunghezza, velocità, fase; aggiornate a ogni frame.
+  const movers = [];
   // 'ring' = strada che gira attorno all'arena: quattro tratti dritti che si incontrano negli angoli.
   const features = (E.features || []).flatMap(f => {
     if (f.type !== 'ring') return [f];
@@ -729,6 +731,13 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, logo, tim
       const lanes = motor ? [[-9, 1], [-4.5, 1], [4.5, -1], [9, -1]] : [[-2.5, 1], [2.5, -1]], trail = [];
       for (const [o, dir] of lanes) for (let k = 0; k < len / 45; k++) { const [x, z] = along(p, 0, o); trail.push({ x, y: 0.9, z, c: dir > 0 ? '#fff4dc' : '#ff3b30', s: motor ? 1.5 : 1.3, m0: rand() * len, sp: dir * (motor ? 26 + rand() * 6 : 12 + rand() * 4) }); }
       group.add(glowPoints(trail, glow, time, { dir: p.along === 'x' ? [1, 0, 0] : [0, 0, 1], len }));
+      // Traffico di giorno: auto e qualche camion su ogni corsia, nei due sensi (f.traffic = veicoli ogni 100 m per corsia).
+      const dens = f.traffic ?? (motor ? 1.8 : 1.5);
+      for (const [o, dir] of lanes) for (let k = 0; k < Math.round(len / 100 * dens); k++) {
+        const kind = rand() < (motor ? 0.25 : 0.12) ? 'truck' : rand() < 0.08 ? 'bus' : 'car', sp = (motor ? 22 : 11) * (0.8 + rand() * 0.35) * (kind === 'car' ? 1 : 0.85);
+        movers.push({ kind, len, speed: sp, phase: rand() * len, color: kind === 'car' ? pick3(rand, ['#e6e6e6', '#202226', '#8b9096', '#b3262c', '#2b4d7a', '#c7c9cc', '#3d5a3a']) : kind === 'bus' ? '#d23a2e' : pick3(rand, ['#f2f2f0', '#e8e8e4', '#1f4f9e', '#c9cbcc']),
+          path: u => { const s2 = dir > 0 ? u - len / 2 : len / 2 - u, [x, z] = along(p, s2, o); return [x, z, (p.along === 'x' ? Math.PI / 2 : 0) + (dir > 0 ? 0 : Math.PI)]; } });
+      }
       // Le strade non finiscono nel nulla: imbocco di galleria dentro una collina boscosa.
       for (const end of f.tunnels || []) {
         const sgn = end === 'start' ? -1 : 1, [tx, tz] = along(p, sgn * len / 2, 0), T = new Mesher(), conc = color('#b9b8b3'), dark = color('#0d0e10'), hill = color(snow ? '#d9e0e6' : '#4d6a3c');
@@ -844,6 +853,16 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, logo, tim
       const tt = towerTextures(A.team), tm = nightMat(new THREE.MeshLambertMaterial({ map: tt.day, emissiveMap: tt.night, emissive: color('#ffffff'), emissiveIntensity: 0 }), 1);
       const tower = new THREE.Mesh(geo, tm); tower.position.set(p.cx, h / 2, p.cz); group.add(tower);
       occupy(p.cx - p.lx / 2 - 4, p.cx + p.lx / 2 + 4, p.cz - p.lz / 2 - 4, p.cz + p.lz / 2 + 4);
+    } else if (f.type === 'walkers') {
+      // Pedoni che attraversano un piazzale verso l'arena e ritornano (camminano in fila sparsa, a velocità diverse), vestiti
+      // con i colori della squadra di casa più qualche colore neutro. `y`: quota del piano su cui camminano (es. il cortile rialzato).
+      const p = place(f, f.w ?? 30, f.len ?? 80), L = p.along === 'x' ? p.lx : p.lz, W = p.along === 'x' ? p.lz : p.lx, toArena = f.side === 'south' || f.side === 'east' ? -1 : 1;
+      for (let k = 0; k < (f.n ?? 40); k++) {
+        const s0 = (rand() - 0.5) * L * 0.9, dir = rand() < 0.75 ? toArena : -toArena, drift = (rand() - 0.5) * 6;
+        const TH = TEAMS[A.team], cols = f.colors || [TH.primary, TH.secondary, TH.accent, TH.extra, '#2b2e33', '#7a7f86', '#3a4f7a', '#5a4a3c'].filter(Boolean);
+        movers.push({ kind: 'walker', len: W, y: f.y ?? 0, speed: 1.1 + rand() * 0.6, phase: rand() * W, color: pick3(rand, cols),
+          path: u => { const o = dir > 0 ? u - W / 2 : W / 2 - u, [x, z] = along(p, s0 + drift * (u / W), o); return [x, z, p.along === 'x' ? (dir > 0 ? 0 : Math.PI) : (dir > 0 ? Math.PI / 2 : -Math.PI / 2)]; } });
+      }
     } else if (f.type === 'trees') {
       // Filare di alberi giovani su un piazzale (Friburgo), con la loro aiuola.
       const p = place(f, 4, f.len ?? 80), L = p.along === 'x' ? p.lx : p.lz, n = f.n ?? 8;
@@ -970,6 +989,19 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, logo, tim
     group.add(F.mesh());
   }
   if (!M.empty) group.add(M.mesh());
+  if (movers.length) {
+    // Una InstancedMesh per tipo; le posizioni si ricalcolano prima di ogni disegno dal tempo della vista.
+    const SIZE = { car: [1.9, 1.4, 4.4, 0.75], truck: [2.5, 3.6, 13, 2.1], bus: [2.5, 3.1, 12, 1.85], walker: [0.5, 1.7, 0.35, 0.85] };
+    const m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), v3 = new THREE.Vector3(), sc = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), kc = new THREE.Color();
+    for (const kind of Object.keys(SIZE)) {
+      const list = movers.filter(m => m.kind === kind); if (!list.length) continue;
+      const [sx, sy, sz, y] = SIZE[kind], inst = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial(), list.length);
+      list.forEach((m, i) => inst.setColorAt(i, kc.set(m.color)));
+      const place2 = () => { list.forEach((m, i) => { const u = ((m.phase + time.value * m.speed) % m.len + m.len) % m.len, [x, z, yaw] = m.path(u); q4.setFromAxisAngle(up, yaw); m4.compose(v3.set(x, y + (m.y || 0) + (kind === 'walker' ? Math.abs(Math.sin(u * 3)) * 0.06 : 0), z), q4, sc.set(sx, sy, sz)); inst.setMatrixAt(i, m4); }); inst.instanceMatrix.needsUpdate = true; };
+      place2(); inst.frustumCulled = false; inst.onBeforeRender = place2; group.add(inst);
+      if (kind === 'truck') { const cabs = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: '#2b2e33' }), list.length); const placeC = () => { list.forEach((m, i) => { const u = ((m.phase + time.value * m.speed) % m.len + m.len) % m.len, [x, z, yaw] = m.path(u); q4.setFromAxisAngle(up, yaw); m4.compose(v3.set(x + Math.sin(yaw) * 7.6, 1.6, z + Math.cos(yaw) * 7.6), q4, sc.set(2.4, 2.8, 2.4)); cabs.setMatrixAt(i, m4); }); cabs.instanceMatrix.needsUpdate = true; }; placeC(); cabs.frustumCulled = false; cabs.onBeforeRender = placeC; group.add(cabs); }
+    }
+  }
   if (cars.length) {
     const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial(), cars.length), m = new THREE.Matrix4(), k = new THREE.Color();
     cars.forEach(([x, z, al], i) => { m.compose(new THREE.Vector3(x, 0.75, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), al === 'x' ? Math.PI / 2 : 0), new THREE.Vector3(1.9, 1.4, 4.4)); inst.setMatrixAt(i, m); inst.setColorAt(i, k.set(pick3(rand, ['#e6e6e6', '#202226', '#8b9096', '#b3262c', '#2b4d7a', '#c7c9cc']))); });
