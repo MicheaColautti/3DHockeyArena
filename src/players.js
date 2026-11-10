@@ -1,8 +1,8 @@
 // Giocatori stilizzati e materiali condivisi.
 import * as THREE from 'three';
-import { TEAMS } from './teams.js?v=61';
-import { color, lum, Mesher } from './common.js?v=61';
-import { kitColors, jerseyTexture } from './textures.js?v=61';
+import { TEAMS } from './teams.js?v=69';
+import { color, lum, Mesher } from './common.js?v=69';
+import { kitColors, jerseyTexture } from './textures.js?v=69';
 
 /* ---------- giocatori ---------- */
 

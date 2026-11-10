@@ -2,7 +2,7 @@
 // Convenzione: x lungo la pista, z in larghezza. Nord = z < 0 (lato lontano dalla telecamera), sud = z > 0 (panchine).
 // Ovest = x < 0, est = x > 0. Lungo una sezione t va da 0 a 1: da ovest a est sui lati lunghi, da nord a sud sui lati corti.
 
-import { RINK } from './common.js?v=61';
+import { RINK } from './common.js?v=69';
 
 export const SIDES = ['north', 'south', 'west', 'east'];
 
@@ -19,7 +19,7 @@ export function makeProfile(spec) {
       top = last + gr; below = last;
     }
     for (let r = 0; r < t.rows; r++) {
-      rows.push({ d, depth: t.depth, h: top, below, tier: ti, standing: !!(t.standing ?? spec.standing), index: rows.length, first: r === 0 });
+      rows.push({ d, depth: t.depth, h: top, below, tier: ti, standing: !!(t.standing ?? spec.standing), vip: !!t.vip, index: rows.length, first: r === 0 });
       below = top; d += t.depth; top += t.rise;
     }
     last = rows[rows.length - 1].h;
@@ -83,11 +83,21 @@ export function buildLayout(A) {
 function wedgeSection(A, P, sx, sz, ex, zn, zs) {
   const endKey = sx < 0 ? 'west' : 'east', side = sz < 0 ? 'north' : 'south';
   const W = { ...(A.wedge || {}), ...(A.wedge?.at?.[`${endKey}-${side}`] || {}) };
-  const Le = P[endKey].depth, Ln = P[side].depth, hyp = Math.hypot(Le, Ln), H = Le * Ln / hyp;
-  const h0 = W.h0 ?? Math.min(P[endKey].base, P[side].base), top = W.top ?? Math.min(P[endKey].top, P[side].top);
-  const n = Math.max(2, Math.round(H / (W.row ?? 0.85)));
-  const profile = makeProfile({ base: h0, tiers: [{ rows: n, rise: (top - h0) / (n - 1), depth: H / n }] });
-  return { key: `wedge-${endKey}-${side}`, kind: 'wedge', ix: sx * (ex + 0.05), iz: sz < 0 ? -(zn + 0.05) : zs + 0.05, sx, sz, Le, Ln, H,
+  // lower: il cuneo riempie solo l'angolo dell'anello basso (Berna): cateti e quota finale presi dal primo anello dei lati vicini,
+  // così sopra l'angolo l'anello superiore resta diviso in quattro parti.
+  const tier0 = Q => { const r = Q.rows.filter(R => R.tier === 0).at(-1); return { depth: r.d + r.depth, top: r.h }; };
+  const Le = W.lower ? tier0(P[endKey]).depth : P[endKey].depth, Ln = W.lower ? tier0(P[side]).depth : P[side].depth, hyp = Math.hypot(Le, Ln), H = Le * Ln / hyp;
+  const h0 = W.h0 ?? Math.min(P[endKey].base, P[side].base), top = W.top ?? (W.lower ? Math.min(tier0(P[endKey]).top, tier0(P[side]).top) : Math.min(P[endKey].top, P[side].top));
+  // tip: punta piatta, le file partono a questa distanza dal vertice (la prima fila è già un tratto dritto).
+  const tip = W.tip ?? 0, n = Math.max(2, Math.round((H - tip) / (W.row ?? 0.85)));
+  let profile;
+  if (W.match) {
+    // match: il cuneo ripete gli anelli della testata vicina (file, corridoio, muro, secondo anello) con le profondità
+    // ridotte in proporzione, così sale fino in cima come i lati e le quote combaciano lungo i cateti.
+    const spec = A.stands[endKey], k = (H - tip) / P[endKey].depth;
+    profile = makeProfile({ ...spec, tiers: spec.tiers.map(t => ({ ...t, depth: t.depth * k, vip: false, standing: false, ...(t.gap ? { gap: { ...t.gap, depth: (t.gap.depth ?? 1.8) * k } } : {}) })) });
+  } else profile = makeProfile({ base: h0, tiers: [{ rows: n, rise: (top - h0) / (n - 1), depth: (H - tip) / n }] });
+  return { key: `wedge-${endKey}-${side}`, kind: 'wedge', ix: sx * (ex + 0.05), iz: sz < 0 ? -(zn + 0.05) : zs + 0.05, sx, sz, Le, Ln, H, tip,
     nx: sx * Ln / hyp, nz: sz * Le / hyp, end: endKey, side, wrap: false, profile, edge: W.edge, stair: W.stair ?? true };
 }
 
@@ -112,7 +122,7 @@ export function sectionPoint(S, t, d) {
   }
   if (S.kind === 'wedge') {
     // t = 0 sul cateto accanto alla testata, t = 1 sul cateto accanto al lato lungo.
-    const f = d / S.H;
+    const f = (d + S.tip) / S.H;
     return { x: S.ix + S.sx * S.Le * f * (1 - t), z: S.iz + S.sz * S.Ln * f * t, nx: S.nx, nz: S.nz };
   }
   if (S.chamfer && d >= S.chamferFrom) {

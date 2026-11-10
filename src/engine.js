@@ -7,14 +7,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { TEAMS } from './teams.js?v=61';
-import { ARENAS } from './arenas.js?v=61';
-import { POSITIONS, placeholderLineup } from './lineups.js?v=61';
-import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=61';
-import { iceTexture, boardsTexture, ledTexture, suitesTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=61';
-import { lambert, disposeObject, makePlayer } from './players.js?v=61';
-import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=61';
-import { buildExterior } from './exterior.js?v=61';
+import { TEAMS } from './teams.js?v=69';
+import { ARENAS } from './arenas.js?v=69';
+import { POSITIONS, placeholderLineup } from './lineups.js?v=69';
+import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=69';
+import { iceTexture, boardsTexture, ledTexture, suitesTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=69';
+import { lambert, disposeObject, makePlayer } from './players.js?v=69';
+import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=69';
+import { buildExterior } from './exterior.js?v=69';
 
 export { RINK };
 const NEUTRALS = ['#2b2f36', '#3c4048', '#56606b', '#e6e6e6', '#1d2a44', '#5b4636', '#8a8f99', '#1a1a1a', '#6f7f8f', '#a33a3a', '#3f5f3f'];
@@ -301,11 +301,12 @@ export class ArenaView {
     const rails = color('#c7ccd2'), fasciaC = color(TEAMS[A.team].primary).lerp(color('#111'), 0.35), aisle = conc.clone().lerp(color('#ffffff'), 0.18), wedgeFace = color(st.wedgeFace || '#d9d6cf');
     const M = new Mesher(), lerp2 = (a, b, u) => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u];
     let roofBase = 0;
+    this.vipFronts = [];
     sections.forEach((S, si) => {
       const P = S.profile;
       roofBase = Math.max(roofBase, P.top);
       // Curva in piedi di casa: niente scale tra i settori, solo due passaggi vicino al centro (A.home.aisles).
-      const curveSec = this.isCurve(S), vom = curveSec && S.kind === 'straight' ? this.vomitories(S) : null, cuts = [...zoneCuts(A, S), ...(vom ? vom.cuts : []), ...(S.kind === 'wedge' && S.stair ? [0.47, 0.53] : [])], upperFrom = st.upperSeats ? Math.floor(P.rows.length * st.upperSeats.from) : Infinity, upperC = st.upperSeats && color(st.upperSeats.color);
+      const curveSec = this.isCurve(S), ent = this.entrances(S), vom = ent || (curveSec && S.kind === 'straight' ? this.vomitories(S) : null), cuts = [...zoneCuts(A, S), ...(vom ? vom.cuts : []), ...(S.kind === 'wedge' && S.stair ? [0.47, 0.53] : [])], upperFrom = st.upperSeats ? Math.floor(P.rows.length * st.upperSeats.from) : Infinity, upperC = st.upperSeats && color(st.upperSeats.color);
       P.rows.forEach((R, ri) => {
         const ts = sectionTs(S, 0, 1, 7, cuts), at = d => ts.map(t => { const q = sectionPoint(S, t, d); return [q.x, q.z]; });
         const inner = at(R.d), outer = at(R.d + R.depth);
@@ -325,17 +326,35 @@ export class ArenaView {
             M.quad([a[0], R.below, a[1]], [b[0], R.below, b[1]], [b[0], R.h, b[1]], [a[0], R.h, a[1]], aisle.clone().multiplyScalar(0.8));
             continue;
           }
+          // VIP (Berna): ogni "fila" è un piano di logge. Pavimento, una fila di poltroncine sul bordo e, dietro,
+          // la vetrata della loggia (disegnata a parte con la texture delle suite, vedi vipFronts).
+          if (R.vip) {
+            M.quad([a[0], R.h, a[1]], [b[0], R.h, b[1]], [c[0], R.h, c[1]], [d[0], R.h, d[1]], floorC);
+            const sa = lerp2(a, d, 0.12), sb = lerp2(b, c, 0.12), sa2 = lerp2(a, d, 0.42), sb2 = lerp2(b, c, 0.42), vs = color(st.vipSeat || '#c8d400');
+            M.quad([sa[0], R.h + 0.45, sa[1]], [sb[0], R.h + 0.45, sb[1]], [sb2[0], R.h + 0.45, sb2[1]], [sa2[0], R.h + 0.45, sa2[1]], vs);
+            M.quad([sa2[0], R.h + 0.45, sa2[1]], [sb2[0], R.h + 0.45, sb2[1]], [sb2[0], R.h + 1.0, sb2[1]], [sa2[0], R.h + 1.0, sa2[1]], vs.clone().multiplyScalar(0.8));
+            M.quad([a[0], R.h, a[1]], [b[0], R.h, b[1]], [b[0], R.h + 1.1, b[1]], [a[0], R.h + 1.1, a[1]], color('#d9dde2'));
+            if (!R.first) this.vipFronts.push([a, b, R.below, R.h]);
+            else M.quad([a[0], R.below, a[1]], [b[0], R.below, b[1]], [b[0], R.h, b[1]], [a[0], R.h, a[1]], fasciaC);
+            if (i % 2 === 0) M.quad([lerp2(a, d, 0.98)[0], R.h, lerp2(a, d, 0.98)[1]], [a[0], R.h, a[1]], [a[0], R.h + 2.6, a[1]], [lerp2(a, d, 0.98)[0], R.h + 2.6, lerp2(a, d, 0.98)[1]], color('#b9bec4'));
+            continue;
+          }
           // Vomitorio: un'apertura nella gradinata con pavimento scuro e pareti laterali, niente gradini.
-          if (vom && R.standing && vom.at((ts[i] + ts[i + 1]) / 2)) {
-            const fy = P.rows[vom.r0].below;
+          // Gli ingressi del secondo anello (A.entrances) hanno le spalle e l'architrave gialli e il fondo nero.
+          if (vom && (ent || R.standing) && vom.at((ts[i] + ts[i + 1]) / 2)) {
+            const fy = P.rows[vom.r0].below, jamb = ent ? color(ent.color) : conc;
             if (ri >= vom.r0 && ri <= vom.r1) {
               M.quad([a[0], fy, a[1]], [b[0], fy, b[1]], [c[0], fy, c[1]], [d[0], fy, d[1]], color('#1b1c1f'));
-              for (const [p1, p2] of [[a, d], [b, c]]) M.quad([p1[0], fy, p1[1]], [p2[0], fy, p2[1]], [p2[0], R.h, p2[1]], [p1[0], R.h, p1[1]], conc);
+              for (const [p1, p2] of [[a, d], [b, c]]) M.quad([p1[0], fy, p1[1]], [p2[0], fy, p2[1]], [p2[0], R.h, p2[1]], [p1[0], R.h, p1[1]], jamb);
               continue;
             }
-            if (ri === vom.r1 + 1) { M.quad([a[0], fy, a[1]], [b[0], fy, b[1]], [b[0], R.h, b[1]], [a[0], R.h, a[1]], color('#121315')); M.quad([a[0], R.h, a[1]], [b[0], R.h, b[1]], [c[0], R.h, c[1]], [d[0], R.h, d[1]], seat); continue; }
+            if (ri === vom.r1 + 1) {
+              M.quad([a[0], fy, a[1]], [b[0], fy, b[1]], [b[0], R.h, b[1]], [a[0], R.h, a[1]], color(ent ? '#050506' : '#121315'));
+              if (ent) M.quad([a[0], R.h - 0.7, a[1]], [b[0], R.h - 0.7, b[1]], [b[0], R.h + 0.02, b[1]], [a[0], R.h + 0.02, a[1]], jamb);
+              M.quad([a[0], R.h, a[1]], [b[0], R.h, b[1]], [c[0], R.h, c[1]], [d[0], R.h, d[1]], seat); continue;
+            }
           }
-          const segLen = Math.hypot(b[0] - a[0], b[1] - a[1]), hasAisle = A.noAisles || S.kind === 'wedge' || (curveSec && R.standing) ? false : S.kind === 'straight' ? segLen > 3 : i % 3 === 2 && segLen > 1.5;
+          const segLen = Math.hypot(b[0] - a[0], b[1] - a[1]), hasAisle = A.noAisles || S.kind === 'wedge' || (curveSec && R.standing) ? false : R.tier > 0 && A.upperAisles ? S.kind === 'straight' && this.upperAisleAt(S, ts[i + 1]) : S.kind === 'straight' ? segLen > 3 : i % 3 === 2 && segLen > 1.5;
           const u = hasAisle ? 1 - Math.min(0.45, 1.1 / Math.max(segLen, 0.1)) : 1;
           const a2 = lerp2(a, b, u), d2 = lerp2(d, c, u);
           M.quad([a[0], R.h, a[1]], [a2[0], R.h, a2[1]], [d2[0], R.h, d2[1]], [d[0], R.h, d[1]], seat);
@@ -393,11 +412,30 @@ export class ArenaView {
     this.benchAwayRange = [3, 12];
     M.box(-2.6, 0.6, -RINK.halfW - 1.3, 3.6, 1.2, 1.8, color('#2b2e35')); M.box(2.6, 0.6, -RINK.halfW - 1.3, 3.6, 1.2, 1.8, color('#2b2e35')); M.box(0, 0.7, -RINK.halfW - 1.2, 1.4, 1.4, 1.6, color('#41454d'));
     this.root.add(M.mesh());
+    // Vetrate delle logge VIP: texture delle suite, accese anche con la luce della pista.
+    if (this.vipFronts.length) {
+      const pos = [], uv = [], tex = suitesTexture(); tex.wrapS = THREE.RepeatWrapping;
+      for (const [a, b, y0, y1] of this.vipFronts) { const L = Math.hypot(b[0] - a[0], b[1] - a[1]) / 6; for (const [p, u, y, v] of [[a, 0, y0, 0], [b, L, y0, 0], [b, L, y1, 1], [a, 0, y0, 0], [b, L, y1, 1], [a, 0, y1, 1]]) { pos.push(p[0], y, p[1]); uv.push(u, v); } }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      this.root.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide })));
+    }
   }
 
   // Soffitto interno. Tipi: truss (capriate in acciaio), flat (travi piene), botta (travi diagonali), slats (travi scure e doghe chiare),
   // wood-truss (capriate in legno), vault (volta ribassata con archi), wood-arch / wood-gothic (archi in legno), wood-cross (volte incrociate).
   isCurve(S) { const H = this.A.home; return !!H && (S.kind === 'straight' ? S.key === H.side && H.from == null && H.to == null : S.wrap && S.end === H.side); }
+  // Secondo anello con poche scale (A.upperAisles = una scala ogni n settori da ~7 m), alla fine del settore come le altre.
+  upperAisleAt(S, t) { const n = Math.max(1, Math.round(S.len / 7)), k = t * n, r = Math.round(k); return Math.abs(k - r) < 1e-4 && r > 0 && (r - 1) % this.A.upperAisles === Math.floor(this.A.upperAisles / 2); }
+  // Ingressi del secondo anello (Berna, A.entrances { every, color, sides, rows }): aperture nere con le spalle gialle,
+  // a passo regolare lungo i lati indicati, qualche fila sopra il fronte dell'anello; fuori dal settore ospiti.
+  entrances(S) {
+    const E = this.A.entrances; if (!E || S.kind !== 'straight' || !(E.sides || ['north', 'south', 'west', 'east']).includes(S.key)) return null;
+    const rows = S.profile.rows, first = rows.findIndex(R => R.tier === 1 && !R.vip); if (first < 0) return null;
+    const n = Math.max(1, Math.round(S.len / (E.every ?? 16))), hw = 1.5 / S.len, G = this.A.guest, all = Array.from({ length: n }, (_, k) => (k + 0.5) / n);
+    const at = all.filter(c => !(G && G.side === S.key && c > (G.from ?? 0) - 0.03 && c < (G.to ?? 1) + 0.03));
+    const r0 = first + (E.from ?? 5), r1 = Math.min(rows.length - 2, r0 + (E.rows ?? 4) - 1);
+    return { cuts: at.flatMap(c => [c - hw, c + hw]), r0, r1, color: E.color || '#f2c500', at: t => at.some(c => Math.abs(t - c) < hw) };
+  }
   // Due vomitori nella curva di casa, a sinistra e a destra del centro (t), larghi circa 2,8 m, alti 4 file.
   vomitories(S) {
     const off = Math.min(0.3, 5 / S.len), at = this.A.home?.vomitories ?? [0.5 - off, 0.5 + off], hw = 1.4 / S.len, rows = S.profile.rows.filter(R => R.standing).length;
@@ -515,7 +553,11 @@ export class ArenaView {
       const P = S.profile;
       for (const b of P.bands) {
         const l = readable(sectionLine(S, b.d - 0.06));
-        if (b.kind === 'led') this.root.add(new THREE.Mesh(stripGeometry(l, Math.max(b.y0 + 0.15, b.y1 - 1.05), b.y1 - 0.12, { uScale: 22 }), ledMat));
+        // 'wall' (Berna): muro alto e scuro tra i due anelli, con una striscia LED larga in cima e un filo bianco sotto.
+        if (b.kind === 'wall') {
+          this.root.add(new THREE.Mesh(stripGeometry(l, b.y1 - 1.7, b.y1 - 0.2, { uScale: 22 }), ledMat));
+          this.root.add(new THREE.Mesh(stripGeometry(readable(sectionLine(S, b.d - 0.07)), b.y1 - 2.0, b.y1 - 1.85, { uScale: 22 }), new THREE.MeshBasicMaterial({ color: '#f4f4f2', side: THREE.DoubleSide })));
+        } else if (b.kind === 'led') this.root.add(new THREE.Mesh(stripGeometry(l, Math.max(b.y0 + 0.15, b.y1 - 1.05), b.y1 - 0.12, { uScale: 22 }), ledMat));
         else if (b.kind === 'suites') this.root.add(new THREE.Mesh(stripGeometry(l, b.y0 + 0.45, b.y1 - 0.4, { uScale: 6 }), suitesMat));
         else if (b.kind === 'team') this.root.add(new THREE.Mesh(stripGeometry(l, b.y0 + 0.3, b.y1 - 0.3, { uScale: 10 }), teamMat));
       }
@@ -575,7 +617,7 @@ export class ArenaView {
 
   buildOutside() {
     const top = this.roofY + (this.archRise || 0);
-    const ext = buildExterior(this.A, { ...this.extent, roofY: top, logo: this.logos[this.A.team], time: this.time, glow: this.glow });
+    const ext = buildExterior(this.A, { ...this.extent, roofY: top, wallY: this.roofY, logo: this.logos[this.A.team], time: this.time, glow: this.glow });
     this.outside = ext.group; this.outsideRoof = ext.roof; this.outsideTop = ext.height; this.nightList = ext.night; this.sky = ext.sky;
     this.outside.visible = false; this.root.add(this.outside);
   }
@@ -606,23 +648,24 @@ export class ArenaView {
       side: [[TH.primary, 30], [TH.secondary, 14], ...NEUTRALS.map(n => [n, 56 / NEUTRALS.length])],
     };
     for (const S of sections) {
-      const P = S.profile, segLen = S.kind === 'straight' ? S.len / Math.max(1, Math.round(S.len / 7)) : 0;
+      const P = S.profile, segLen = S.kind === 'straight' ? S.len / Math.max(1, Math.round(S.len / 7)) : 0, ent = this.entrances(S);
       P.rows.forEach((R, ri) => {
         const spacing = (R.standing ? 0.56 : 0.62) / density;
         for (const p of samplePolyline(sectionLine(S, R.d + R.depth * 0.55), spacing, rand, 0.14)) {
           if (S.kind === 'wedge' && S.stair && Math.abs(p.t - 0.5) < 0.06) continue; // scala al centro del cuneo
           if (A.noAisles) { /* tribune continue, senza scale */ }
+          else if (ent && ri >= ent.r0 && ri <= ent.r1 && ent.at(p.t)) continue; // ingressi gialli del secondo anello
           else if (this.isCurve(S) && R.standing) { const v = S.kind === 'straight' && this.vomitories(S); if (v && ri >= v.r0 && ri <= v.r1 && v.at(p.t)) continue; }
-          else if (segLen && (p.t * S.len) % segLen > segLen - 1.15) continue; // scale tra i settori
+          else if (segLen && (R.tier === 0 || !A.upperAisles || Math.floor(p.t * S.len / segLen) % A.upperAisles === Math.floor(A.upperAisles / 2)) && (p.t * S.len) % segLen > segLen - 1.15) continue; // scale tra i settori
           if (A.corners === 'wedge' && S.kind === 'straight' && (p.t * S.len < 0.7 || (1 - p.t) * S.len < 0.7)) continue;
           const fy = R.h;
           const zone = zoneAt(A, S, p.t, R);
           const occ = zone === 'curve' ? 0.97 : zone === 'guest' ? 0.92 : zone === 'standing' ? 0.93 : A.occupancy ?? 0.88;
-          if (rand() > occ) continue;
+          if (rand() > occ || (R.vip && rand() < 0.7)) continue;
           const shirt = weighted(rand, mixes[zone]);
           const bounce = zone === 'curve' ? 0.1 + rand() * 0.08 : zone === 'guest' ? 0.08 + rand() * 0.07 : zone === 'standing' ? 0.05 + rand() * 0.05 : 0;
           fans.push({ x: p.x, z: p.z, y: fy, yaw: Math.atan2(-p.dz, p.dx), standing: R.standing || zone === 'guest', shirt, head: rand() < 0.12 ? (zone === 'guest' ? TA.primary : TH.primary) : pick(rand, SKIN), bounce, phase: rand() * 6.28 });
-          const flagChance = zone === 'curve' ? (ri > 0 ? 0.085 : 0) : zone === 'standing' ? 0.025 : zone === 'guest' ? 0.07 : 0;
+          const flagChance = zone === 'curve' ? (ri > 0 ? 0.085 : 0) : zone === 'standing' ? 0.025 : zone === 'guest' ? 0.07 : zone === 'side' && R.tier > 0 && !R.vip ? A.sideFlags ?? 0 : 0;
           if (rand() < flagChance) (zone === 'guest' ? flags.away : flags.home).push({ ...p, y: R.h, big: zone === 'curve' && rand() < 0.07, design: rand(), phase: rand() * 6.28 });
         }
       });

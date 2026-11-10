@@ -19,6 +19,8 @@ const seated = (rows, rise = 0.44, depth = 0.82, more = {}) => ({ rows, rise, de
 const standing = (rows, rise = 0.38, depth = 0.55, more = {}) => ({ rows, rise, depth, standing: true, ...more });
 const upper = (rows, rise, depth, fascia = 'led', gap = { depth: 1.8, rise: 2.6 }) => ({ rows, rise, depth, gap, fascia });
 // Balconata: anello superiore corto, con fascia LED davanti.
+// Secondo anello di Berna: muro alto con striscia LED davanti (fascia 'wall'), corridoio largo.
+const ring2 = t => ({ gap: { depth: 3.2, rise: 5.5 }, fascia: 'wall', ...t });
 const balcony = (rows = 4) => ({ rows, rise: 0.52, depth: 0.8, gap: { depth: 1.2, rise: 2.2 }, fascia: 'led' });
 const suites = (rows = 3) => ({ rows, rise: 0.5, depth: 0.9, gap: { depth: 2, rise: 3.2 }, fascia: 'suites' });
 
@@ -119,24 +121,46 @@ export const ARENAS = {
     team: 'SCB', name: 'PostFinance Arena', city: 'Berna', capacity: 17031, opened: 1967,
     note: "L'arena più grande d'Europa per l'hockey: la Stehrampe in piedi occupa un intero lato lungo e finisce con lo Stehplatz Gast nell'angolo. Fuori, una scatola a pannelli con la grande volta bianca.",
     facts: ['Stehrampe SCB lungo tutto un lato lungo', 'Stehplatz Gast in fondo alla stessa rampa', 'Volta bianca sopra il ghiaccio', 'Di sera facciata azzurra e bianca'],
-    gaps: { side: 2.4, bench: 4.6, end: 3.4 },
+    // Interno imponente (misure volutamente esagerate): due anelli su tutti e quattro i lati, separati da un muro alto con
+    // una striscia LED larga. Primo anello a sedere che gira negli angoli (cunei bassi); il secondo anello è diviso in
+    // quattro parti: a nord la massa in piedi dei bernesi con gli ospiti in fondo, a sud le logge VIP vetrate (Lime Lounge),
+    // sulle testate altre tribune con qualche bandiera. Nel secondo anello poche scale e ingressi neri con le spalle gialle.
+    gaps: { side: 3.2, bench: 5.2, end: 4.4 },
     stands: {
-      north: { base: 2.6, tiers: [standing(46, 0.38, 0.5)] },
-      south: { base: 1.4, tiers: [seated(14, 0.44, 0.82), upper(12, 0.5, 0.8, 'led', { depth: 2, rise: 3 }), upper(9, 0.56, 0.78, 'led', { depth: 1.8, rise: 2.4 })] },
-      west: { base: 1.6, tiers: [seated(14, 0.44, 0.82), upper(10, 0.52, 0.8, 'led', { depth: 2, rise: 3 })] },
-      east: { base: 1.6, tiers: [seated(14, 0.44, 0.82), upper(10, 0.52, 0.8, 'led', { depth: 2, rise: 3 })] },
+      north: { base: 1.8, tiers: [seated(18, 0.46, 0.84), ring2({ rows: 44, rise: 0.42, depth: 0.56, standing: true })] },
+      south: { base: 1.8, tiers: [seated(18, 0.46, 0.84), ring2({ rows: 5, rise: 3.4, depth: 3.6, vip: true })] },
+      west: { base: 1.8, tiers: [seated(18, 0.46, 0.84), ring2({ rows: 28, rise: 0.5, depth: 0.8 })] },
+      east: { base: 1.8, tiers: [seated(18, 0.46, 0.84), ring2({ rows: 28, rise: 0.5, depth: 0.8 })] },
     },
-    corners: { west: 'end', east: 'end' },
-    home: { side: 'north', from: 0, to: 0.8 },
-    guest: { side: 'north', from: 0.83, to: 1 },
+    corners: 'wedge', wedge: { match: true, tip: 4 },
+    home: { side: 'north', tier: 1 },
+    guest: { side: 'north', from: 0.86, to: 1, tier: 1 },
+    entrances: { every: 15, color: '#f2c500', sides: ['north', 'west', 'east'], from: 6, rows: 4 },
+    upperAisles: 4, sideFlags: 0.03,
     led: { boards: true, rim: true },
-    roof: { type: 'vault', rise: 0.24, clear: 6, color: '#cfd2d4', steel: '#6e5440', skylight: true },
-    cube: { w: 9, h: 5.6 },
-    style: { concrete: '#7c8087', riser: '#62666c', wall: '#2f3238', floor: '#25272b', seats: ['#b3192b', '#c99a00', '#b3192b'], seatPattern: 'blocks' },
+    roof: { type: 'vault', rise: 0.08, clear: 8, color: '#cfd2d4', steel: '#6e5440', skylight: true },
+    cube: { w: 11, h: 6.6 },
+    style: { concrete: '#7c8087', riser: '#62666c', wall: '#2f3238', floor: '#25272b', seats: ['#b3192b', '#c99a00', '#b3192b'], seatPattern: 'blocks', vipSeat: '#c8d400' },
     light: { tint: '#f4f7ff', ambient: 1, key: 1.05 },
-    exterior: { shape: 'rect', wall: '#dfe2e5', facade: 'panels', uScale: 30, nightPower: 0.8, roof: 'barrel', roofMat: 'membrane', roofColor: '#eef0f2', inset: 6, rimMat: 'green', rise: 9, signColor: '#f4c400', ground: 'urban', trees: 70, conifers: false, haloColor: '#cfe2ff',
-      features: [{ type: 'road', side: 'south', dist: 24 }, { type: 'rail', side: 'east', dist: 26, tracks: 9 }, { type: 'hall', side: 'west', dist: 14, w: 60, len: 110, h: 16, color: '#c3c7cb', top: '#7d8a5c' }, { type: 'hall', side: 'north', dist: 12, w: 50, len: 140, h: 14, color: '#d2d5d8', top: '#8b9298' },
-        { type: 'parking', side: 'south', dist: 8, w: 14, len: 90 }, { type: 'city', side: 'north', dist: 80, n: 46 }, { type: 'city', side: 'west', dist: 90, n: 36 }, { type: 'city', side: 'south', dist: 60, n: 30 }] },
+    // Esterno: sala in vetro opalino a pieghe (il bordo alto sale, scende e risale), volta bianca sopra,
+    // blocco uffici rialzato lungo il lato sud con il piazzale e la scalinata; strada ad anello e città fitta attorno.
+    exterior: { shape: 'rect', wall: '#dfe2e5', facade: 'opal', uScale: 40, nightPower: 0.9, roofColor: '#eef0f2', signColor: '#f4a300', ground: 'urban', trees: 40, conifers: false, haloColor: '#cfe2ff',
+      // relative: bordo alto in metri sopra il muro interno, pieghe in frazione della sua altezza (la sala segue le tribune).
+      folded: { relative: true, out: 3.5, topOut: 0, lift: { side: 'east', len: 72, h: 13 },
+        top: [[0, 9], [0.06, 11], [0.14, 7], [0.19, 7], [0.25, 12], [0.2715, 10], [0.4, 4], [0.5, 2.5], [0.7715, 2.5], [0.88, 5], [1, 9]],
+        fold: [[0, 0.42], [0.1, 0.7], [0.2, 0.32], [0.2715, 0.56], [0.4, 0.28], [0.5, 0.49], [0.7715, 0.49], [0.88, 0.28], [1, 0.42]] },
+      block: { depth: 22, h: 'hall', ground: 7, over: 6 },
+      features: [
+        { type: 'ring', dist: 22 },
+        { type: 'motorway', side: 'east', dist: 62, len: 1400, tunnels: ['start', 'end'] },
+        { type: 'hall', side: 'west', dist: 42, w: 60, len: 120, h: 16, color: '#c3c7cb', top: '#a8705a' },
+        { type: 'plaza', side: 'south', dist: 0, w: 20, len: 150, color: '#b9b6ae', lampEvery: 14 },
+        { type: 'city', side: 'north', palette: ['#e4ddd0', '#d6cfc2', '#ece8df', '#c9c1b3', '#b9b4ab', '#dcd2bf'], grid: 26, dist: 46, depth: 280, spread: 340, height: 22 },
+        { type: 'city', side: 'south', palette: ['#e4ddd0', '#d6cfc2', '#ece8df', '#c9c1b3', '#b9b4ab', '#dcd2bf'], grid: 26, dist: 46, depth: 280, spread: 340, height: 24 },
+        { type: 'city', side: 'west', palette: ['#e4ddd0', '#d6cfc2', '#ece8df', '#c9c1b3', '#b9b4ab', '#dcd2bf'], grid: 26, dist: 118, depth: 220, spread: 340, height: 20 },
+        { type: 'city', side: 'east', palette: ['#e4ddd0', '#d6cfc2', '#ece8df', '#c9c1b3', '#b9b4ab', '#dcd2bf'], grid: 26, dist: 104, depth: 220, spread: 340, height: 26 },
+        { type: 'slope', side: 'north', dist: 340, angle: 0.3, depth: 420, trees: 800, conifers: false },
+      ] },
   },
   EHCB: {
     team: 'EHCB', name: 'Tissot Arena', city: 'Bienne', capacity: 6562, opened: 2015,

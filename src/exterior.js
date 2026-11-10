@@ -4,8 +4,8 @@
 // finisce nella lista `night` restituita, e la vista ne regola l'intensità durante il tramonto.
 
 import * as THREE from 'three';
-import { TEAMS } from './teams.js?v=61';
-import { seeded, color, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect } from './common.js?v=61';
+import { TEAMS } from './teams.js?v=69';
+import { seeded, color, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect } from './common.js?v=69';
 
 const pick3 = (rand, list) => list[Math.floor(rand() * list.length)];
 const GROUND = { urban: '#8e8f88', alpine: '#6f8a55', grass: '#79925a', snow: '#e6ebf0' };
@@ -65,6 +65,19 @@ function facadeTextures(E) {
     const gr = n.createLinearGradient(0, H, 0, 0); gr.addColorStop(0, 'rgba(60,130,255,.9)'); gr.addColorStop(0.5, 'rgba(120,175,255,.42)'); gr.addColorStop(1, 'rgba(200,225,255,.1)');
     n.globalCompositeOperation = 'lighter'; n.fillStyle = gr; n.fillRect(0, 0, W, H * 0.88); n.globalCompositeOperation = 'source-over';
     ground(0.88);
+  } else if (f === 'opal') {
+    // Berna: vetro opalino quasi bianco a montanti fitti, con macchie di riquadri grigi come pixel; di sera azzurro dal basso.
+    g.fillStyle = '#e8edf0'; g.fillRect(0, 0, W, H);
+    for (let y = 0; y < H * 0.9; y += 12) for (let x = 0; x < W; x += 16) {
+      const blob = Math.sin(x * 0.031 + y * 0.05) + Math.sin(x * 0.013 - y * 0.07) + rand() * 0.9;
+      if (blob > 1.1) { g.fillStyle = pick3(rand, ['#a9b2ba', '#bcc4cb', '#98a2ab', '#c9d0d6']); g.fillRect(x, y, 16, 12); }
+    }
+    g.fillStyle = 'rgba(120,135,150,.35)'; for (let x = 0; x < W; x += 8) g.fillRect(x, 0, 1, H * 0.9);
+    g.fillStyle = 'rgba(255,255,255,.7)'; for (let y = 0; y < H * 0.9; y += 48) g.fillRect(0, y, W, 2);
+    const gr = n.createLinearGradient(0, H, 0, 0); gr.addColorStop(0, 'rgba(40,110,255,.95)'); gr.addColorStop(0.45, 'rgba(70,140,255,.6)'); gr.addColorStop(1, 'rgba(150,190,255,.18)');
+    n.fillStyle = gr; n.fillRect(0, 0, W, H * 0.9);
+    n.fillStyle = 'rgba(0,0,30,.35)'; for (let x = 0; x < W; x += 8) n.fillRect(x, 0, 1, H * 0.9);
+    ground(0.9);
   } else if (f === 'hslats') {
     // Porrentruy, Rapperswil: rivestimento a doghe orizzontali.
     for (let y = 0; y < H * 0.86; y += 6) { g.fillStyle = y % 12 ? light : dark; g.fillRect(0, y, W, 2); }
@@ -114,7 +127,7 @@ function facadeTextures(E) {
     g.strokeStyle = dark; g.lineWidth = 2; for (let x = 0; x < W; x += 64) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); } for (let y = 0; y < H; y += 64) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
     ground(0.86);
   }
-  if (f !== 'slots' && f !== 'panels' && f !== 'mesh') { g.fillStyle = light; g.fillRect(0, 0, W, 6); }
+  if (f !== 'slots' && f !== 'panels' && f !== 'mesh' && f !== 'opal') { g.fillStyle = light; g.fillRect(0, 0, W, 6); }
   // Luce colorata dal basso (es. fascia blu del Gottardo): leggera, sopra il piano terra.
   if (E.wash) { const gr = n.createLinearGradient(0, H, 0, H * 0.4); gr.addColorStop(0, E.wash); gr.addColorStop(1, 'rgba(0,0,0,0)'); n.globalCompositeOperation = 'lighter'; n.fillStyle = gr; n.fillRect(0, 0, W, H); n.globalCompositeOperation = 'source-over'; }
   return { day: texture(c, true), night: texture(cn, true) };
@@ -158,6 +171,21 @@ function glazingNightTexture(tint) {
   g.strokeStyle = '#000'; g.lineWidth = 6; for (let x = 0; x <= 256; x += 32) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 256); g.stroke(); }
   g.lineWidth = 4; for (let y = 0; y <= 256; y += 48) { g.beginPath(); g.moveTo(0, y); g.lineTo(256, y); g.stroke(); }
   const t = texture(c, true); t.wrapT = THREE.RepeatWrapping; return t;
+}
+
+// Blocco uffici (Berna): telai bianchi a griglia, finestre scure e lamelle verticali chiare davanti ai vetri.
+// Quattro piani su tutta l'altezza della texture; di notte una parte degli uffici resta accesa.
+function officeTextures(seed) {
+  const W = 512, H = 256, [c, g] = canvas(W, H), [cn, n] = canvas(W, H), rand = seeded(seed), floors = 4, fh = H / floors;
+  g.fillStyle = '#d9dde0'; g.fillRect(0, 0, W, H); n.fillStyle = '#000'; n.fillRect(0, 0, W, H);
+  for (let f = 0; f < floors; f++) for (let x = 0; x < W; x += 32) {
+    const y = f * fh;
+    g.fillStyle = '#26323c'; g.fillRect(x + 3, y + 5, 26, fh - 9);
+    if (rand() < 0.55) { g.fillStyle = 'rgba(205,212,218,.85)'; for (let k = 0; k < 26; k += 4) g.fillRect(x + 3 + k, y + 5, 2, fh - 9); }
+    if (rand() < 0.4) { n.fillStyle = rand() < 0.8 ? 'rgba(255,214,160,.85)' : 'rgba(215,230,255,.8)'; n.fillRect(x + 3, y + 5, 26, fh - 9); }
+  }
+  g.fillStyle = '#f2f3f4'; for (let x = 0; x < W; x += 32) g.fillRect(x, 0, 3, H); for (let f = 0; f <= floors; f++) g.fillRect(0, f * fh - 2, W, 4);
+  return { day: texture(c, true), night: texture(cn, true) };
 }
 
 function towerTextures(seed) {
@@ -222,12 +250,14 @@ function glowPoints(list, glow, time, move = null) {
 
 /* ---------- edificio ---------- */
 
-export function buildExterior(A, { EX, EZn, EZs, roofY, logo, time = { value: 0 }, glow = { value: 0 } }) {
+export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, logo, time = { value: 0 }, glow = { value: 0 } }) {
   const E = A.exterior || {}, group = new THREE.Group(), rand = seeded(A.team + 'ext'), night = [];
   const nightMat = (mat, max = 1, prop = 'emissiveIntensity', min = 0) => { night.push({ mat, max: max - min, prop, min }); return mat; };
   const pad = 1.2, X0 = -EX - pad, X1 = EX + pad, Z0 = -EZn - pad, Z1 = EZs + pad;
   const H = E.height ?? (E.roof === 'star' && E.eaves ? E.eaves : roofY + (E.parapet ?? 1.5)), fp = footprint(E.shape, X0, X1, Z0, Z1);
-  const occupied = [[X0 - 14, X1 + 14, Z0 - 14, Z1 + 14]];
+  // Blocco uffici addossato al lato sud (Berna): il terreno attorno, il piazzale e i dintorni partono dal suo fronte.
+  const BK = E.block, Zs = Z1 + (BK ? BK.depth ?? 18 : 0);
+  const occupied = [[X0 - 14, X1 + 14, Z0 - 14, Zs + 14]];
   const occupy = (x0, x1, z0, z1) => occupied.push([Math.min(x0, x1), Math.max(x0, x1), Math.min(z0, z1), Math.max(z0, z1)]);
   const lamps = [], windows = [], pools = [];
   const lampAt = (x, z, hgt = 8, c = '#ffd59a') => { lamps.push({ x, y: hgt, z, c, s: 2.6 }); pools.push([x, z]); };
@@ -256,9 +286,9 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, logo, time = { value: 0 
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(5000, 5000), new THREE.MeshLambertMaterial({ color: E.meadows ? '#76924f' : groundC }));
   ground.rotation.x = -Math.PI / 2; ground.position.y = -0.06; group.add(ground);
   const plaza = (cx, cz, lx, lz, c = '#b8b5ad') => { const m = new THREE.Mesh(new THREE.PlaneGeometry(lx, lz), new THREE.MeshLambertMaterial({ color: c })); m.rotation.x = -Math.PI / 2; m.position.set(cx, 0.01, cz); group.add(m); return m; };
-  plaza((X0 + X1) / 2, (Z0 + Z1) / 2, X1 - X0 + 28, Z1 - Z0 + 28, snow ? '#cdd3d9' : '#b8b5ad');
-  for (let x = X0 - 12; x <= X1 + 12; x += 18) { lampAt(x, Z0 - 12, 7); lampAt(x, Z1 + 12, 7); }
-  for (let z = Z0 + 6; z <= Z1 - 6; z += 18) { lampAt(X0 - 12, z, 7); lampAt(X1 + 12, z, 7); }
+  plaza((X0 + X1) / 2, (Z0 + Zs) / 2, X1 - X0 + 28, Zs - Z0 + 28, snow ? '#cdd3d9' : '#b8b5ad');
+  for (let x = X0 - 12; x <= X1 + 12; x += 18) { lampAt(x, Z0 - 12, 7); lampAt(x, Zs + 12, 7); }
+  for (let z = Z0 + 6; z <= Zs - 6; z += 18) { lampAt(X0 - 12, z, 7); lampAt(X1 + 12, z, 7); }
 
   // Facciata (e fascia superiore sporgente, se c'è).
   const fac = facadeTextures(E), uScale = E.uScale ?? 18;
@@ -316,7 +346,108 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, logo, time = { value: 0 
       ring.forEach((a2, i) => { const b2 = ring[(i + 1) % ring.length], L = Math.hypot(b2[0] - a2[0], b2[1] - a2[1]); for (let u = 2; u < L; u += 6) { const t = u / L, x = a2[0] + (b2[0] - a2[0]) * t, z = a2[1] + (b2[1] - a2[1]) * t; bol.box(x, ph + 0.45, z, 0.2, 0.9, 0.2, k); warmPts.push({ x, y: ph + 0.95, z, c: '#ffd9a0', s: 1.1 }); } });
       for (const [x0, x1, z0, z1] of notches) for (const [x, z] of [[x0 + 0.3, z0], [x1 - 0.3, z0], [x0 + 0.3, z1], [x1 - 0.3, z1], [x0, z0 + 0.3], [x0, z1 - 0.3], [x1, z0 + 0.3], [x1, z1 - 0.3]]) warmPts.push({ x, y: ph * 0.5, z, c: '#ffe2b5', s: 0.9 });
       group.add(bol.mesh()); group.add(glowPoints(warmPts, glow, time)); }
-  } else { facade = new THREE.Mesh(stripGeometry(fp, 0, H, { closed: true, uScale }), facMat); group.add(facade); }
+  } else if (E.folded) facade = foldedHall();
+  else { facade = new THREE.Mesh(stripGeometry(fp, 0, H, { closed: true, uScale }), facMat); group.add(facade); }
+
+  // Quote della sala a pieghe. Con relative: true i profili sono altezze sopra il muro interno (wallY), così la sala
+  // segue le tribune; la volta parte 1,5 m sopra il muro e sale almeno quanto l'arco interno più un metro.
+  // topAt(x, z) dà la quota del tetto in ogni punto: sul perimetro è il profilo E.folded.top, dentro una superficie
+  // che unisce i quattro bordi (patch di Coons) più un rigonfiamento basso lungo z (parabola alta `rise`), che copre l'arco
+  // interno. Così la copertura non è una cupola staccata ma una forma unica che sale tra gli angoli.
+  function foldedSpec() {
+    const F = E.folded, rel = F.relative ? wallY : 0, arch = roofY - wallY;
+    const prof = (list, s2) => { const L = [...list].sort((a, b) => a[0] - b[0]); if (s2 <= L[0][0]) return L[0][1]; for (let i = 1; i < L.length; i++) if (s2 <= L[i][0]) { const u = (s2 - L[i - 1][0]) / (L[i][0] - L[i - 1][0]); return L[i - 1][1] + (L[i][1] - L[i - 1][1]) * u; } return L.at(-1)[1]; };
+    const top = F.top.map(([s2, h]) => [s2, h + rel]), fold = F.relative && F.fold ? F.fold.map(([s2, f]) => [s2, f * wallY]) : F.fold;
+    const w = X1 - X0, d = Z1 - Z0, PER = 2 * (w + d), low = Math.min(...F.top.map(k => k[1])) + rel - wallY;
+    // Colmo a falde dritte (1 - |u|), alto quanto basta perché ogni punto resti sopra l'arco interno (cerchio di freccia `arch`).
+    let need = 0; for (let k = 0; k < 40; k++) { const u = k / 40; need = Math.max(need, (arch * Math.sqrt(1 - u * u) - low) / (1 - u)); }
+    const rise = Math.max(F.rise ?? 0, need + 0.6);
+    const edge = { n: x => prof(top, (x - X0) / PER), e: z => prof(top, (w + z - Z0) / PER), s: x => prof(top, (w + d + X1 - x) / PER), w: z => prof(top, Math.min(1, (2 * w + d + Z1 - z) / PER)) };
+    const bump = z => { const u = (z - (Z0 + Z1) / 2) / (d / 2); return rise * Math.max(0, 1 - Math.abs(u)); };
+    const topAt = (x, z) => {
+      const u = Math.min(1, Math.max(0, (x - X0) / w)), v = Math.min(1, Math.max(0, (z - Z0) / d));
+      const c00 = edge.n(X0), c10 = edge.n(X1), c01 = edge.s(X0), c11 = edge.s(X1);
+      return (1 - v) * edge.n(x) + v * edge.s(x) + (1 - u) * edge.w(z) + u * edge.e(z) - ((1 - u) * (1 - v) * c00 + u * (1 - v) * c10 + (1 - u) * v * c01 + u * v * c11) + bump(z);
+    };
+    return { ...F, prof, top, fold, rise, topAt };
+  }
+
+  // Sala a pieghe (Berna). Lungo il perimetro (s da 0 a 1, dall'angolo nord-ovest verso est, poi sud, ovest) il bordo
+  // superiore segue E.folded.top [[s, h]...]: sale, scende e risale. A metà altezza la facciata si piega in fuori
+  // (E.folded.fold [[s, h]], out): le linee di piega inclinate disegnano le grandi facce del rivestimento.
+  // Verso il blocco uffici il bordo inferiore delle testate si alza (lift) e sotto resta un ingresso vetrato arretrato.
+  function foldedHall() {
+    const F = foldedSpec(), C = fp, N4 = C.length, nrm = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+    const lens = C.map((a, i) => Math.hypot(C[(i + 1) % N4][0] - a[0], C[(i + 1) % N4][1] - a[1])), per = [0];
+    lens.forEach((l, i) => per.push(per[i] + l)); const PER = per[N4];
+    const prof = F.prof;
+    const outs = C.map((_, i) => BK && i === 2 ? 0 : F.out ?? 1.8), LF = F.lift || {}, liftLen = LF.len ?? 24, liftSide = { east: 1, west: 3 }[LF.side ?? 'east'], liftH = LF.h ?? BK?.ground ?? 6;
+    // Bordo inferiore: dritto a terra, tranne sulla testata `lift.side` dove sale in diagonale fino all'angolo col blocco uffici.
+    const bottom = (i, z) => !BK ? 0 : i === 2 ? blockH() - 0.3 : i === liftSide ? liftH * Math.min(1, Math.max(0, (z - (Z1 - liftLen)) / liftLen)) : 0;
+    // Spostamento in fuori di un punto: dentro un lato la sua normale, negli angoli la somma delle due (giunto a 45°).
+    const offset = (i, t) => { const j = t < 1e-6 ? (i + N4 - 1) % N4 : t > 1 - 1e-6 ? (i + 1) % N4 : -1, v = [nrm[i][0] * outs[i], nrm[i][1] * outs[i]]; if (j >= 0) { v[0] += nrm[j][0] * outs[j]; v[1] += nrm[j][1] * outs[j]; } return v; };
+    const pos = [], uv = [], R = new Mesher(), recess = color('#2c3640'), soffit = color('#3a3d42'), topMax = Math.max(...F.top.map(k => k[1])) + F.rise;
+    const keysAll = [...F.top, ...(F.fold || [])].map(k => k[0]);
+    for (let i = 0; i < N4; i++) {
+      const a = C[i], b = C[(i + 1) % N4], ts = new Set([0, 1]);
+      for (let d = 4; d < lens[i]; d += 4) ts.add(d / lens[i]);
+      for (const k of keysAll) { const t = (k * PER - per[i]) / lens[i]; if (t > 0 && t < 1) ts.add(t); }
+      if (BK && i === liftSide) { const t = i === 1 ? (Z1 - liftLen - a[1]) / lens[i] : (a[1] - (Z1 - liftLen)) / lens[i]; if (t > 0 && t < 1) ts.add(t); }
+      const smp = [...ts].sort((x, y) => x - y).map(t => {
+        const x = a[0] + (b[0] - a[0]) * t, z = a[1] + (b[1] - a[1]) * t, s2 = (per[i] + t * lens[i]) / PER, o = offset(i, t);
+        const yb = bottom(i, z), yt = F.topAt(x, z), yf = Math.min(yt - 1, Math.max(yb + 1, prof(F.fold || [[0, yt * 0.5], [1, yt * 0.5]], s2)));
+        return { x, z, s: s2 * PER, o, yb, yf, yt, top: F.topOut ?? 0.25 };
+      });
+      for (let k = 0; k < smp.length - 1; k++) {
+        const p = smp[k], q = smp[k + 1];
+        const v = (m, y, w) => [m.x + m.o[0] * w, y, m.z + m.o[1] * w];
+        const quad = (A1, B1, C1, D1) => { for (const V of [A1, B1, C1, A1, C1, D1]) { pos.push(V[0], V[1], V[2]); uv.push(V[3] / uScale, V[1] / topMax); } };
+        const P0 = [...v(p, p.yb, 0), p.s], Q0 = [...v(q, q.yb, 0), q.s], P1 = [...v(p, p.yf, 1), p.s], Q1 = [...v(q, q.yf, 1), q.s], P2 = [...v(p, p.yt, p.top), p.s], Q2 = [...v(q, q.yt, q.top), q.s];
+        quad(P0, Q0, Q1, P1); quad(P1, Q1, Q2, P2);
+        // Sotto il bordo sollevato: vetrata arretrata di 1 m e soffitto inclinato.
+        if (p.yb > 0.05 || q.yb > 0.05) {
+          const n = nrm[i], ip = [p.x - n[0], p.z - n[1]], iq = [q.x - n[0], q.z - n[1]];
+          R.quad([ip[0], 0, ip[1]], [iq[0], 0, iq[1]], [iq[0], q.yb, iq[1]], [ip[0], p.yb, ip[1]], recess);
+          R.quad([p.x, p.yb, p.z], [q.x, q.yb, q.z], [iq[0], q.yb, iq[1]], [ip[0], p.yb, ip[1]], soffit);
+          if (k % 2 === 0) windows.push({ x: ip[0] + n[0] * 0.3, y: Math.max(1.2, p.yb * 0.45), z: ip[1] + n[1] * 0.3, c: '#ffd9a6', s: 2 });
+        }
+      }
+    }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.computeVertexNormals();
+    facMat.flatShading = true;
+    const mesh = new THREE.Mesh(geo, facMat); group.add(mesh);
+    if (!R.empty) group.add(R.mesh());
+    if (BK) officeBlock();
+    return mesh;
+  }
+
+  // Altezza del blocco uffici: un numero, oppure 'hall' = arriva al bordo della sala su quel lato (la copertura parte dal suo tetto).
+  function blockH() { return BK.h === 'hall' ? foldedSpec().topAt(0, Z1) - 0.2 : BK.h ?? 22; }
+
+  // Blocco uffici lungo il lato sud: piano terra vetrato arretrato, quattro piani a sbalzo sul piazzale, tetto verde.
+  // Accanto alla testata est una scalinata larga sale dal piazzale all'ingresso rialzato sotto la sala.
+  function officeBlock() {
+    const g0 = BK.ground ?? 6, h = blockH(), over = BK.over ?? 5, zf = Zs, zg = Zs - over, M2 = new Mesher();
+    const glass = nightMat(new THREE.MeshLambertMaterial({ map: glazingTexture(), emissiveMap: glazingNightTexture('#ffd9a8'), emissive: color('#ffffff'), emissiveIntensity: 0.04, side: THREE.DoubleSide }), 0.9, 'emissiveIntensity', 0.04);
+    group.add(new THREE.Mesh(stripGeometry([[X0 + 1.5, Z1], [X0 + 1.5, zg], [X1 - 1.5, zg], [X1 - 1.5, Z1]], 0, g0, { uScale: 8 }), glass));
+    const ot = officeTextures(A.team + 'office'); for (const t of [ot.day, ot.night]) { t.wrapT = THREE.RepeatWrapping; t.repeat.y = Math.max(1, Math.round((h - g0) / 4.2)) / 4; } const om = nightMat(new THREE.MeshLambertMaterial({ map: ot.day, emissiveMap: ot.night, emissive: color('#ffffff'), emissiveIntensity: 0, side: THREE.DoubleSide }), 1);
+    // Tre facce esterne (la quarta tocca la sala): ovest, sud, est.
+    group.add(new THREE.Mesh(stripGeometry([[X0, Z1], [X0, zf], [X1, zf], [X1, Z1]], g0, h, { uScale: 30 }), om));
+    M2.quad([X0, g0, Z1], [X1, g0, Z1], [X1, g0, zf], [X0, g0, zf], color('#2a2c30'));
+    M2.quad([X0, g0 - 0.6, zf], [X1, g0 - 0.6, zf], [X1, g0, zf], [X0, g0, zf], color('#cfd3d6'));
+    const roofG = color('#7d8a5c'); M2.quad([X0, h, Z1], [X1, h, Z1], [X1, h, zf], [X0, h, zf], roofG);
+    for (const [a, b] of [[[X0, Z1], [X0, zf]], [[X0, zf], [X1, zf]], [[X1, zf], [X1, Z1]]]) M2.quad([a[0], h, a[1]], [b[0], h, b[1]], [b[0], h + 0.8, b[1]], [a[0], h + 0.8, a[1]], color('#e3e6e8'));
+    const r2 = seeded(A.team + 'hvac'); for (let i = 0; i < 9; i++) M2.box(X0 + 10 + r2() * (X1 - X0 - 20), h + 0.9, Z1 + 4 + r2() * (zf - Z1 - 8), 3 + r2() * 4, 1.8, 2 + r2() * 2, color(i % 3 ? '#c9ccd0' : '#9ea3a8'));
+    // Scalinata accanto alla testata est: sale verso nord fino al ripiano sotto la sala sollevata.
+    const sx0 = X1 + 0.6, sx1 = X1 + 9, top = g0 - 1.5, steps = 26, run = 0.62, zTop = Z1 - 3, conc = color('#c6c4bf');
+    for (let k = 0; k < steps; k++) { const y = top * (k + 1) / steps, z = zTop + (steps - k) * run; M2.box((sx0 + sx1) / 2, y / 2, z - run / 2, sx1 - sx0, y, run + 0.02, conc); }
+    M2.box((sx0 + sx1) / 2 - 3.5, top / 2, zTop - 6, sx1 - sx0 + 7, top, 12, conc);
+    for (const x of [sx0 - 0.2, sx1 + 0.2]) M2.beam([x, 1.2, zTop + steps * run], [x, top + 1.2, zTop], 0.25, color('#e2e1dd'), 2.4);
+    group.add(M2.mesh());
+    for (let x = X0 + 6; x < X1; x += 8) windows.push({ x, y: g0 - 0.9, z: zf - 0.6, c: '#fff0d8', s: 1.4 });
+    occupy(X0, sx1 + 1, Z1, zf);
+  }
+
   if (E.overhang) {
     const out = grow(fp, E.overhang.out ?? 2.2), y0 = H * (E.overhang.from ?? 0.5), M = new Mesher(), soffit = color('#2a2c30');
     const band = stripGeometry(out, y0, H, { closed: true, uScale }), uv = band.attributes.uv;
@@ -336,7 +467,19 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, logo, time = { value: 0 
     geo.rotateX(-Math.PI / 2); const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: roofTexture(material, E.roofColor) })); m.position.y = y; roof.add(m); return m;
   };
   const parapet = (poly, y0, y1) => roof.add(new THREE.Mesh(stripGeometry(poly, y0, y1, { closed: true }), new THREE.MeshLambertMaterial({ color: color(E.wall || '#8d9096').multiplyScalar(0.85), side: THREE.DoubleSide })));
-  if (kind === 'star') {
+  if (E.folded) {
+    // Copertura unica che segue i bordi delle facciate e sale piano verso il centro (vedi foldedSpec): membrana bianca
+    // a fasce, con una cornice in lamiera grigia lungo il perimetro.
+    const F = foldedSpec(), N = 48, RM = new Mesher(), white = color(E.roofColor || '#eef0f2'), seam = white.clone().multiplyScalar(0.93), metal = color('#9ca3a9');
+    const P = (i, j) => { const x = X0 + (X1 - X0) * i / N, z = Z0 + (Z1 - Z0) * j / N; return [x, F.topAt(x, z) + 0.02, z]; };
+    let hi = 0;
+    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+      const a = P(i, j), b = P(i + 1, j), c2 = P(i + 1, j + 1), d2 = P(i, j + 1), mx = (a[0] + c2[0]) / 2, mz = (a[2] + c2[2]) / 2;
+      const rim = Math.min(mx - X0, X1 - mx, mz - Z0, Z1 - mz) < 3.2;
+      RM.quad(a, d2, c2, b, rim ? metal : i % 3 === 0 ? seam : white); hi = Math.max(hi, a[1]);
+    }
+    roof.add(RM.mesh()); top = hi;
+  } else if (kind === 'star') {
     // Falde incrociate (Davos): due tetti a capanna che si intersecano, timpani vetrati sui quattro lati.
     const M = new Mesher(), cx = (X0 + X1) / 2, cz = (Z0 + Z1) / 2, hx = (X1 - X0) / 2, hz = (Z1 - Z0) / 2, rise = E.rise ?? 20;
     const hgt = (x, z) => H + rise * Math.max(1 - Math.abs(z - cz) / hz, 1 - Math.abs(x - cx) / hx);
@@ -438,6 +581,11 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, logo, time = { value: 0 
   // Insegna sul lato principale (sud).
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(30, 4.7), new THREE.MeshBasicMaterial({ map: signTexture(A, logo), transparent: true }));
   sign.position.set(E.signX ?? 0, E.signAt ? H * E.signAt : Math.min(H - 3, 9), Z1 + (E.overhang ? E.overhang.out ?? 2.2 : 0) + 0.15); group.add(sign);
+  if (BK) {
+    // Berna: insegna in cima al blocco uffici e una seconda, più grande, sulla testata est della sala.
+    sign.position.set(X1 - 24, blockH() - 2.8, Zs + 0.2);
+    const s2 = sign.clone(); s2.scale.setScalar(1.3); s2.rotation.y = Math.PI / 2; s2.position.set(X1 + (E.folded?.out ?? 1.8) + 0.5, foldedSpec().topAt(X1, Z1 - 30) - 9, Z1 - 30); group.add(s2);
+  }
 
   // Alone sopra l'arena di notte: la luce della pista che esce da vetrate e lucernari.
   const halo = new THREE.Mesh(new THREE.PlaneGeometry((X1 - X0) * 2.2, (Z1 - Z0) * 2.4), nightMat(new THREE.MeshBasicMaterial({ map: radialTexture(), color: E.haloColor || '#ffe2b8', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }), 0.22, 'opacity'));
@@ -447,14 +595,21 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, logo, time = { value: 0 
   const place = (f, w, len) => {
     const d = f.dist ?? 30, off = f.offset ?? 0;
     if (f.side === 'north') return { cx: off, cz: Z0 - d - w / 2, lx: len, lz: w, along: 'x' };
-    if (f.side === 'south') return { cx: off, cz: Z1 + d + w / 2, lx: len, lz: w, along: 'x' };
+    if (f.side === 'south') return { cx: off, cz: Zs + d + w / 2, lx: len, lz: w, along: 'x' };
     if (f.side === 'west') return { cx: X0 - d - w / 2, cz: off, lx: w, lz: len, along: 'z' };
     return { cx: X1 + d + w / 2, cz: off, lx: w, lz: len, along: 'z' };
   };
   const flat = (p, c, y = 0.012, m = null) => { const mesh = new THREE.Mesh(new THREE.PlaneGeometry(p.lx, p.lz), m || new THREE.MeshLambertMaterial({ color: c })); mesh.rotation.x = -Math.PI / 2; mesh.position.set(p.cx, y, p.cz); group.add(mesh); return mesh; };
   const along = (p, s, o) => p.along === 'x' ? [p.cx + s, p.cz + o] : [p.cx + o, p.cz + s];
   const cars = [], treeSpots = [], M = new Mesher(), slopeH = [];
-  for (const f of E.features || []) {
+  // 'ring' = strada che gira attorno all'arena: quattro tratti dritti che si incontrano negli angoli.
+  const features = (E.features || []).flatMap(f => {
+    if (f.type !== 'ring') return [f];
+    const d = f.dist ?? 20, w = 10, lx = X1 - X0 + 2 * d + 2 * w, lz = Zs - Z0 + 2 * d + w;
+    return [{ type: 'road', side: 'north', dist: d, len: lx }, { type: 'road', side: 'south', dist: d, len: lx },
+      { type: 'road', side: 'west', dist: d, len: lz, offset: (Z0 + Zs) / 2 }, { type: 'road', side: 'east', dist: d, len: lz, offset: (Z0 + Zs) / 2 }];
+  });
+  for (const f of features) {
     const len = f.len ?? 1400;
     if (f.type === 'rail') {
       const w = (f.tracks ?? 3) * 5, p = place(f, w, len), steel = color('#5b5e63');
@@ -621,17 +776,39 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, logo, time = { value: 0 
       if (f.houses) for (let i = 0; i < f.houses; i++) { const q = pt(rand(), 0.15 + rand() * 0.5); M.box(q[0], q[1] + 3, q[2], 8, 6, 7, color('#d8d0c2')); windows.push({ x: q[0], y: q[1] + 3, z: q[2], c: '#ffcf8a', s: 1.6 }); }
     } else if (f.type === 'city' || f.type === 'gardens') {
       const n = f.n ?? 40, spread = f.spread ?? 220;
-      for (let i = 0; i < n; i++) {
-        const al = (rand() - 0.5) * spread * 2, out = (f.dist ?? 40) + rand() * (f.depth ?? 160);
-        let x, z; if (f.side === 'north') { x = al; z = Z0 - out; } else if (f.side === 'south') { x = al; z = Z1 + out; } else if (f.side === 'west') { x = X0 - out; z = al; } else { x = X1 + out; z = al; }
-        if (occupied.some(r => x > r[0] - 8 && x < r[1] + 8 && z > r[2] - 8 && z < r[3] + 8)) continue;
-        if (f.type === 'gardens') { M.box(x, 0.05, z, 8 + rand() * 6, 0.1, 6 + rand() * 5, color(pick3(rand, ['#6f9a4c', '#8bab5a', '#a58a5c', '#5f8a45']))); if (rand() < 0.15) windows.push({ x, y: 2, z, c: '#ffcf8a', s: 1.2 }); continue; }
-        const w = 12 + rand() * 18, d = 12 + rand() * 18, h = 8 + rand() * (f.height ?? 22), ry = rand() * 0.3;
-        M.box(x, h / 2, z, w, h, d, color(pick3(rand, ['#d8d3c8', '#c9c4ba', '#b8b4ad', '#e2ddd2', '#a9a59e'])), ry);
-        M.box(x, h + 0.4, z, w * 0.96, 0.8, d * 0.96, color(snow ? '#eef2f5' : '#7c7a76'), ry);
+      const toXZ = (al, out) => f.side === 'north' ? [al, Z0 - out] : f.side === 'south' ? [al, Zs + out] : f.side === 'west' ? [X0 - out, al] : [X1 + out, al];
+      const house = (x, z, w, d, h, ry) => {
+        M.box(x, h / 2, z, w, h, d, color(pick3(rand, f.palette || ['#d8d3c8', '#c9c4ba', '#b8b4ad', '#e2ddd2', '#a9a59e'])), ry);
+        M.box(x, h + 0.4, z, w * 0.96, 0.8, d * 0.96, color(snow ? '#eef2f5' : f.roofColor || '#7c7a76'), ry);
         // Fasce di finestre a ogni piano, così i palazzi si leggono come case e non come blocchi.
         for (let fy = 2; fy < h - 1.5; fy += 3.2) M.box(x, fy, z, w + 0.12, 1.1, d + 0.12, color('#4a535c'), ry);
         buildingWindows(x, z, w, d, h, ry, 0.33);
+      };
+      if (f.grid) {
+        // Città fitta: isolati su una griglia di strade, un palazzo per isolato (a volte due), poche aree vuote.
+        const cell = f.grid, street = f.street ?? 7, S2 = new Mesher(), asphalt = color('#56585c');
+        for (let al = -spread; al < spread; al += cell) for (let out = f.dist ?? 40; out < (f.dist ?? 40) + (f.depth ?? 160); out += cell) {
+          const [x, z] = toXZ(al + cell / 2, out + cell / 2);
+          if (occupied.some(r => x + cell / 2 > r[0] && x - cell / 2 < r[1] && z + cell / 2 > r[2] && z - cell / 2 < r[3])) continue;
+          S2.quad([x - cell / 2, 0.08, z - cell / 2], [x + cell / 2, 0.08, z - cell / 2], [x + cell / 2, 0.08, z + cell / 2], [x - cell / 2, 0.08, z + cell / 2], asphalt);
+          const inner = cell - street;
+          S2.quad([x - inner / 2, 0.1, z - inner / 2], [x + inner / 2, 0.1, z - inner / 2], [x + inner / 2, 0.1, z + inner / 2], [x - inner / 2, 0.1, z + inner / 2], color('#a3a199'));
+          if (rand() < (f.empty ?? 0.08)) { for (let i = 0; i < 4; i++) treeSpots.push([x + (rand() - 0.5) * inner * 0.7, z + (rand() - 0.5) * inner * 0.7, 7 + rand() * 5, 0, false]); continue; }
+          const h = 9 + rand() * (f.height ?? 22);
+          if (rand() < 0.35) { const w2 = inner * 0.46; house(x - inner / 4, z, w2, inner * (0.7 + rand() * 0.25), h, 0); house(x + inner / 4, z, w2, inner * (0.7 + rand() * 0.25), 9 + rand() * (f.height ?? 22), 0); }
+          else house(x, z, inner * (0.78 + rand() * 0.2), inner * (0.78 + rand() * 0.2), h, 0);
+          lampAt(x + cell / 2 - street / 2, z + cell / 2 - street / 2, 7);
+          occupy(x - cell / 2, x + cell / 2, z - cell / 2, z + cell / 2);
+        }
+        group.add(S2.mesh());
+        continue;
+      }
+      for (let i = 0; i < n; i++) {
+        const [x, z] = toXZ((rand() - 0.5) * spread * 2, (f.dist ?? 40) + rand() * (f.depth ?? 160));
+        if (occupied.some(r => x > r[0] - 8 && x < r[1] + 8 && z > r[2] - 8 && z < r[3] + 8)) continue;
+        if (f.type === 'gardens') { M.box(x, 0.05, z, 8 + rand() * 6, 0.1, 6 + rand() * 5, color(pick3(rand, ['#6f9a4c', '#8bab5a', '#a58a5c', '#5f8a45']))); if (rand() < 0.15) windows.push({ x, y: 2, z, c: '#ffcf8a', s: 1.2 }); continue; }
+        const w = 12 + rand() * 18, d = 12 + rand() * 18, h = 8 + rand() * (f.height ?? 22), ry = rand() * 0.3;
+        house(x, z, w, d, h, ry);
         if (rand() < 0.4) lampAt(x + w / 2 + 4, z + d / 2 + 4, 7);
         occupy(x - w / 2, x + w / 2, z - d / 2, z + d / 2);
       }
