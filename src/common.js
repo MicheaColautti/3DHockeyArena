@@ -1,6 +1,6 @@
 // Utilità condivise: numeri casuali ripetibili, colori, immagini, canvas e costruzione di geometrie.
 import * as THREE from 'three';
-import { TEAMS, LOGO_DIR } from './teams.js?v=78';
+import { TEAMS, LOGO_DIR } from './teams.js?v=93';
 
 export const RINK = { halfL: 30, halfW: 15, corner: 8.5, goalX: 26, blueX: 8.2 };
 export const FONT = 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';

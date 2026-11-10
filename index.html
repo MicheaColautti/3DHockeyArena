@@ -58,6 +58,13 @@ button,select{font:inherit;color:inherit}
 .enter{display:flex;align-items:center;gap:12px}
 .cta{height:42px;padding:0 18px;border:0;border-radius:12px;background:var(--green);color:var(--lime);font-weight:800;font-size:14px;cursor:pointer}
 .bar{flex:1;height:4px;border-radius:4px;background:rgba(24,44,44,.1);overflow:hidden}
+/* Scheda dell'intro più compatta: copre meno l'arena (resta leggibile, i contenuti sono gli stessi). */
+.intro{width:min(340px,calc(100% - var(--gap)*2));padding:14px 16px}
+.intro h2{font-size:22px;letter-spacing:-.5px}
+.intro .facts{margin:8px 0;gap:5px}.intro .facts span{padding:3px 7px;font-size:11px}
+.intro ul{margin:0 0 10px;font-size:12px;line-height:1.4}
+.intro .club{gap:10px;padding:8px 0;margin-bottom:10px}.intro .club img{width:34px;height:34px}.intro .club b{font-size:13.5px}.intro .club small{font-size:11px}
+.intro .cta{height:36px;padding:0 14px;font-size:13px;border-radius:10px}
 .bar i{display:block;height:100%;width:0;background:var(--green)}
 
 /* Formazioni */
@@ -196,11 +203,11 @@ button,select{font:inherit;color:inherit}
 </div>
 
 <script type="module">
-import { ArenaView } from './src/engine.js?v=78';
-import { ARENAS, ARENA_IDS } from './src/arenas.js?v=78';
-import { TEAMS, LOGO_DIR } from './src/teams.js?v=78';
-import { POSITIONS, POSITION_SHORT } from './src/lineups.js?v=78';
-import { makeStats } from './src/stats.js?v=78';
+import { ArenaView } from './src/engine.js?v=93';
+import { ARENAS, ARENA_IDS } from './src/arenas.js?v=93';
+import { TEAMS, LOGO_DIR } from './src/teams.js?v=93';
+import { POSITIONS, POSITION_SHORT } from './src/lineups.js?v=93';
+import { makeStats } from './src/stats.js?v=93';
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);

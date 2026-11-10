@@ -7,14 +7,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { TEAMS } from './teams.js?v=78';
-import { ARENAS } from './arenas.js?v=78';
-import { POSITIONS, placeholderLineup } from './lineups.js?v=78';
-import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=78';
-import { iceTexture, boardsTexture, ledTexture, suitesTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=78';
-import { lambert, disposeObject, makePlayer } from './players.js?v=78';
-import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=78';
-import { buildExterior } from './exterior.js?v=78';
+import { TEAMS } from './teams.js?v=93';
+import { ARENAS } from './arenas.js?v=93';
+import { POSITIONS, placeholderLineup } from './lineups.js?v=93';
+import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=93';
+import { iceTexture, boardsTexture, ledTexture, suitesTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=93';
+import { lambert, disposeObject, makePlayer } from './players.js?v=93';
+import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=93';
+import { buildExterior, octaRoof } from './exterior.js?v=93';
 
 export { RINK };
 const NEUTRALS = ['#2b2f36', '#3c4048', '#56606b', '#e6e6e6', '#1d2a44', '#5b4636', '#8a8f99', '#1a1a1a', '#6f7f8f', '#a33a3a', '#3f5f3f'];
@@ -394,8 +394,33 @@ export class ArenaView {
     for (const S of sections) for (const [x, z] of sectionLine(S, S.profile.depth)) { EX = Math.max(EX, Math.abs(x) + 0.4); if (z < 0) EZn = Math.max(EZn, -z + 0.4); else EZs = Math.max(EZs, z + 0.4); }
     this.extent = { EX, EZn, EZs, EZ: Math.max(EZn, EZs) };
     const wallC = color(st.wall), W = new Mesher(), Y = this.roofY, wc = wallC.clone().multiplyScalar(0.9);
-    sections.forEach(S => { const P = S.profile, l = sectionLine(S, P.depth); for (let i = 0; i < l.length - 1; i++) W.wall(l[i], l[i + 1], P.top, Y, wallC); });
-    W.wall([-EX, -EZn], [EX, -EZn], 0, Y, wc); W.wall([-EX, EZs], [EX, EZs], 0, Y, wc); W.wall([-EX, -EZn], [-EX, EZs], 0, Y, wc); W.wall([EX, -EZn], [EX, EZs], 0, Y, wc);
+    // Davos: il soffitto di legno sta 1,4 m sotto le falde esterne (octaRoof) e i muri salgono fino a lui, a tratti di 2 m.
+    // Davos: volta in legno con la stessa logica del tetto esterno, letta dalle foto dell'interno:
+    //  - falde (hS, hE) che salgono da tutte e quattro le pareti partendo appena sopra l'ultima fila (lift): il legno scende
+    //    fino alle tribune lungo tutto il perimetro, e le falde di lato e di testata si incontrano in diagonale negli angoli;
+    //  - due volte a botte acute che si incrociano al centro: gA corre lungo la pista e apre la lunetta a punta sulle testate
+    //    (larga az della testata), gB la attraversa e apre una lunetta più stretta sui lati lunghi (ax della lunghezza).
+    // Si prende la più alta (raccordo morbido soft); il tutto resta sotto le falde esterne (octaRoof) di roof.thick.
+    this.ceilAt = A.exterior?.octaStar ? (() => {
+      const R = octaRoof(A, EX, EZn, EZs), V = A.roof.vault || {}, Ps = this.layout.profiles, lift = V.lift ?? 1.4, kk = V.soft ?? 1.2, p = V.point ?? 0.9;
+      const zc = (EZs - EZn) / 2, EZh = (EZn + EZs) / 2, G = u => Math.pow(Math.max(0, 1 - Math.abs(u)), p);
+      const smin = (a, b) => (a + b - Math.sqrt((a - b) * (a - b) + kk * kk)) / 2, smax = (a, b) => (a + b + Math.sqrt((a - b) * (a - b) + kk * kk)) / 2;
+      const low = Math.max(Ps.north.top, Ps.south.top, Ps.west.top, Ps.east.top) + lift, rise = V.rise ?? 14, ax = V.ax ?? 0.45, az = V.az ?? 0.7, kh = V.hip ?? 0.6;
+      const parts = (x, z) => { const dS = Math.max(0, z < zc ? z + EZn : EZs - z), dE = Math.max(0, EX - Math.abs(x)); return { gA: rise * G((z - zc) / (EZh * az)), gB: rise * G(x / (EX * ax)), hS: Math.min(kh * dS, rise), hE: Math.min(kh * dE, rise) }; };
+      // Famiglia delle nervature: T = archi trasversali (x costante: lunetta di testata e falde dei lati lunghi),
+      // L = archi longitudinali (z costante: lunetta laterale e falde delle testate).
+      const region = (x, z) => { const q = parts(x, z), hip = Math.min(q.hS, q.hE), m = Math.max(q.gA, q.gB, hip); return m === q.gA ? 'TgA' : m === q.gB ? 'LgB' : q.hS <= q.hE ? 'ThS' : 'LhE'; };
+      this.vaultParts = { parts, region, low };
+      return (x, z) => { const q = parts(x, z); return smin(R.h(x, z) - (A.roof.thick ?? 1.4), low + Math.max(0, smax(smin(q.hS, q.hE) + kk * 0.5, smax(q.gA, q.gB)))); };
+    })() : null;
+    const wallTo = (a, b, y0, k, cap = Infinity) => {
+      if (!this.ceilAt) return W.wall(a, b, y0, Y, k);
+      const n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 2));
+      for (let i = 0; i < n; i++) { const p = [a[0] + (b[0] - a[0]) * i / n, a[1] + (b[1] - a[1]) * i / n], q = [a[0] + (b[0] - a[0]) * (i + 1) / n, a[1] + (b[1] - a[1]) * (i + 1) / n], m = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]; W.wall(p, q, y0, Math.min(cap, this.ceilAt(m[0], m[1])), k); }
+    };
+    sections.forEach(S => { const P = S.profile, l = sectionLine(S, P.depth); for (let i = 0; i < l.length - 1; i++) wallTo(l[i], l[i + 1], P.top, wallC); });
+    const endCap = A.extras?.glassGables ? Y : Infinity, sideCap = A.extras?.glassGables === 'ends' ? Infinity : endCap;
+    wallTo([-EX, -EZn], [EX, -EZn], 0, wc, sideCap); wallTo([-EX, EZs], [EX, EZs], 0, wc, sideCap); wallTo([-EX, -EZn], [-EX, EZs], 0, wc, endCap); wallTo([EX, -EZn], [EX, EZs], 0, wc, endCap);
     this.root.add(W.mesh({ side: THREE.FrontSide }));
     if (A.extras?.timberWalls) {
       const T = new Mesher(), wood = color('#c99a62');
@@ -447,7 +472,7 @@ export class ArenaView {
     const A = this.A, R = A.roof, { EX, EZn, EZs } = this.extent, Y = this.roofY, M = new Mesher(), roofC = color(R.color);
     const steel = R.steel ? color(R.steel) : roofC.clone().lerp(color(lum(R.color) > 0.5 ? '#8e959e' : '#5b616a'), 0.5), lights = new Mesher(), lightC = color('#ffffff');
     const zc = (EZs - EZn) / 2, EZ = (EZn + EZs) / 2, glows = new Mesher(), glowC = R.glow ? color(R.glow) : null, bright = new Mesher();
-    let lightY = Y - 0.6, gableMesh = null;
+    let lightY = Y - 0.6, gableMesh = null; this.vaultRibs = null;
     const curved = ['wood-arch', 'wood-gothic', 'vault', 'wood-cross'].includes(R.type);
     this.archRise = 0;
     if (!curved && R.type !== 'slats' && R.type !== 'wood-truss') M.quad([-EX, Y, -EZn], [EX, Y, -EZn], [EX, Y, EZs], [-EX, Y, EZs], roofC);
@@ -495,26 +520,69 @@ export class ArenaView {
       M.beam([-EX, Y - 0.8, -EZn + 0.5], [EX, Y - 0.8, -EZn + 0.5], 0.8, steel, 1.4); M.beam([-EX, Y - 0.8, EZs - 0.5], [EX, Y - 0.8, EZs - 0.5], 0.8, steel, 1.4);
     } else if (R.type === 'wood-cross') {
       // Volte incrociate in legno: due archi acuti che si intersecano, nervature lungo entrambe le direzioni (Davos).
-      const EXr = EX, rise = Math.min(EZ, EXr) * 0.62, f = u => Math.sqrt(Math.max(0, 1 - Math.abs(u)));
-      const h = (x, z) => Y + rise * Math.max(f((z - zc) / EZ), f(x / EXr));
-      const N = 30, plank = [roofC.clone().multiplyScalar(1.05), roofC.clone().multiplyScalar(0.92)];
+      // bulge: 0.5 = volte piene (radice), 1 = falde dritte che scendono fino ai muri negli angoli.
+      const EXr = EX, rise = Math.min(EZ, EXr) * 0.62, f = u => Math.pow(Math.max(0, 1 - Math.abs(u)), R.bulge ?? 0.5);
+      const h = this.ceilAt || ((x, z) => Y + rise * Math.max(f((z - zc) / EZ), f(x / EXr)));
+      const N = this.ceilAt ? 64 : 30, V = R.vault || {};
+      const plank = this.ceilAt ? [roofC.clone().multiplyScalar(0.78), roofC.clone().multiplyScalar(0.74)] : [roofC.clone().multiplyScalar(1.05), roofC.clone().multiplyScalar(0.92)];
       for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
         const x0 = -EX + 2 * EX * i / N, x1 = -EX + 2 * EX * (i + 1) / N, z0 = -EZn + 2 * EZ * j / N, z1 = -EZn + 2 * EZ * (j + 1) / N;
         M.quad([x0, h(x0, z0), z0], [x1, h(x1, z0), z0], [x1, h(x1, z1), z1], [x0, h(x0, z1), z1], plank[(i + j) % 2]);
       }
-      const glulam = roofC.clone().lerp(color('#d9a265'), 0.5), K = 24;
-      for (let x = -EX + 2; x <= EX - 2; x += 4.5) for (let k = 0; k < K; k++) { const z0 = -EZn + 2 * EZ * k / K, z1 = -EZn + 2 * EZ * (k + 1) / K; M.beam([x, h(x, z0) - 0.45, z0], [x, h(x, z1) - 0.45, z1], 0.42, glulam, 0.8); }
-      for (let z = -EZn + 2; z <= EZs - 2; z += 4.5) for (let k = 0; k < K; k++) { const x0 = -EX + 2 * EX * k / K, x1 = -EX + 2 * EX * (k + 1) / K; M.beam([x0, h(x0, z) - 0.45, z], [x1, h(x1, z) - 0.45, z], 0.42, glulam, 0.8); }
+      const glulam = roofC.clone().lerp(color(V.ribColor ?? '#e2b27a'), this.ceilAt ? 0.75 : 0.5);
+      if (this.ceilAt) {
+        // Nervature di Davos come nelle foto: archi in legno lamellare fitti e chiari sul tavolato scuro, ognuno nella sua
+        // falda o lunetta (famiglie T e L di vaultParts.region). Ogni arco si ferma dove cambia famiglia: lì passa una
+        // costola più grossa (diagonali degli angoli e compluvi delle lunette), ricavata dai punti in cui gli archi finiscono.
+        const RB = new Mesher(), VP = this.vaultParts, sx = V.ribStep ?? 3.4, w = V.rib ?? 0.5, d = V.ribH ?? 1.5;
+        const path = (pts, ww, dd, k) => { for (let i = 0; i < pts.length - 1; i++) { const [x0, z0] = pts[i], [x1, z1] = pts[i + 1]; RB.beam([x0, h(x0, z0) - dd * 0.5, z0], [x1, h(x1, z1) - dd * 0.5, z1], ww, k, dd); } };
+        const seg = (a, b, n) => Array.from({ length: n + 1 }, (_, i) => [a[0] + (b[0] - a[0]) * i / n, a[1] + (b[1] - a[1]) * i / n]);
+        const ribC = [glulam, glulam.clone().multiplyScalar(0.94)], ends = {};
+        const rib = (P0, P1, fam, k) => {
+          const L = Math.hypot(P1[0] - P0[0], P1[1] - P0[1]), n = Math.ceil(L / 0.5), at = t => [P0[0] + (P1[0] - P0[0]) * t, P0[1] + (P1[1] - P0[1]) * t];
+          const is = t => VP.region(...at(t))[0] === fam, cut = (a, b) => { const ia = is(a); for (let i = 0; i < 14; i++) { const m = (a + b) / 2; if (is(m) === ia) a = m; else b = m; } return (a + b) / 2; };
+          const mark = t => { const q = at(t), e = 0.3 / L, key = [VP.region(...at(Math.max(0, t - e))), VP.region(...at(Math.min(1, t + e)))].sort().join('|') + Math.sign(q[0]) + (q[1] < zc ? 'n' : 's'); (ends[key] = ends[key] || []).push(q); };
+          let prev = is(0), start = 0;
+          for (let i = 1; i <= n; i++) {
+            const cur = is(i / n); if (cur === prev) continue;
+            const tb = cut((i - 1) / n, i / n); mark(tb);
+            if (cur) start = tb; else if (tb - start > 0.6 / L) path(seg(at(start), at(tb), Math.max(2, Math.ceil((tb - start) * L))), w, d, k);
+            prev = cur;
+          }
+          if (prev && 1 - start > 0.6 / L) path(seg(at(start), at(1), Math.max(2, Math.ceil((1 - start) * L))), w, d, k);
+        };
+        for (let i = 0; ; i++) { const x = (i + 0.5) * sx; if (x > EX - 0.6) break; for (const s of [-1, 1]) rib([s * x, -EZn + 0.3], [s * x, EZs - 0.3], 'T', ribC[i % 2]); }
+        for (let j = 0; ; j++) { const o = (j + 0.5) * sx; if (o > EZ - 0.6) break; for (const s of [-1, 1]) { const z = zc + s * o; if (z > -EZn + 0.3 && z < EZs - 0.3) rib([-EX + 0.3, z], [EX - 0.3, z], 'L', ribC[j % 2]); } }
+        // Costole: i punti finali di ogni confine, ordinati per distanza dal centro, uniti in una linea continua.
+        const edge = glulam.clone().multiplyScalar(0.9), groin = glulam.clone().multiplyScalar(1.06);
+        for (const [cx, cz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const key = 'LhE|ThS' + cx + (cz < 0 ? 'n' : 's'); (ends[key] = ends[key] || []).push([cx * (EX - 0.3), cz < 0 ? -EZn + 0.3 : EZs - 0.3]); }
+        for (const pts of Object.values(ends)) {
+          pts.sort((a, b) => Math.hypot(a[0], a[1] - zc) - Math.hypot(b[0], b[1] - zc));
+          for (let i = 0; i < pts.length - 1; i++) if (Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]) < sx * 3) path(seg(pts[i], pts[i + 1], 3), w * 1.9, d * 1.35, groin);
+        }
+        // Trave di bordo lungo le pareti, dove le falde poggiano sopra le tribune.
+        for (const s of [-1, 1]) path(seg([s * (EX - 0.4), -EZn + 0.4], [s * (EX - 0.4), EZs - 0.4], 40), w * 1.6, d * 1.1, edge);
+        for (const z of [-EZn + 0.4, EZs - 0.4]) path(seg([-EX + 0.4, z], [EX - 0.4, z], 52), w * 1.6, d * 1.1, edge);
+        this.vaultRibs = RB.mesh({ emissive: glulam.clone().multiplyScalar(V.ribGlow ?? 0.32) });
+      } else {
+        // Nervature in legno lamellare: archi trasversali (da tribuna a tribuna) più grossi, longitudinali più sottili.
+        const K = 24, big = V.rib ?? 0.42, bigH = 0.8;
+        for (let x = -EX + 2; x <= EX - 2; x += V.ribStep ?? 4.5) for (let k = 0; k < K; k++) { const z0 = -EZn + 2 * EZ * k / K, z1 = -EZn + 2 * EZ * (k + 1) / K; M.beam([x, h(x, z0) - bigH * 0.55, z0], [x, h(x, z1) - bigH * 0.55, z1], big, glulam, bigH); }
+        for (let z = -EZn + 2; z <= EZs - 2; z += V.ribStep ?? 4.5) for (let k = 0; k < K; k++) { const x0 = -EX + 2 * EX * k / K, x1 = -EX + 2 * EX * (k + 1) / K; M.beam([x0, h(x0, z) - 0.4, z], [x1, h(x1, z) - 0.4, z], 0.42, glulam.clone().multiplyScalar(0.9), 0.8); }
+      }
+      const K = this.ceilAt ? 40 : 24;
       if (A.extras?.glassGables) {
         const G = new Mesher(), gc = color('#a9cbe2');
         for (let k = 0; k < K; k++) {
           const z0 = -EZn + 2 * EZ * k / K, z1 = -EZn + 2 * EZ * (k + 1) / K, x0 = -EX + 2 * EX * k / K, x1 = -EX + 2 * EX * (k + 1) / K;
-          for (const x of [-EX, EX]) G.quad([x, Y, z0], [x, Y, z1], [x, h(x, z1), z1], [x, h(x, z0), z0], gc);
-          for (const z of [-EZn, EZs]) G.quad([x0, Y, z], [x1, Y, z], [x1, h(x1, z), z], [x0, h(x0, z), z], gc);
+          const hg = (x, z) => Math.max(Y, h(x, z));
+          for (const x of [-EX, EX]) G.quad([x, Y, z0], [x, Y, z1], [x, hg(x, z1), z1], [x, hg(x, z0), z0], gc);
+          if (A.extras.glassGables !== 'ends') for (const z of [-EZn, EZs]) G.quad([x0, Y, z], [x1, Y, z], [x1, hg(x1, z), z], [x0, hg(x0, z), z], gc);
         }
         gableMesh = G.mesh({ transparent: true, opacity: 0.5, emissive: color('#7d9fbe'), emissiveIntensity: 0.6 });
       }
-      lightY = Y + rise * 0.45 - 1; this.archRise = rise;
+      const top = this.ceilAt ? this.ceilAt(0, zc) - Y : rise;
+      lightY = Y + top * 0.45 - 1; this.archRise = top;
     } else if (curved) {
       // Archi trasversali: la volta attraversa la pista da un lato lungo all'altro e si ripete da una testata all'altra.
       const rise = R.type === 'wood-gothic' ? EZ * 0.62 : R.type === 'vault' ? EZ * (R.rise ?? 0.2) : EZ * 0.3;
@@ -535,7 +603,7 @@ export class ArenaView {
     const cw = (A.cube?.w ?? 0) / 2 + 1;
     for (let x = -27; x <= 27; x += 6) for (const z of [-10, -4, 4, 10]) if (Math.abs(x) > cw || Math.abs(z) > cw) lights.box(x, lightY, z, 1.3, 0.16, 0.55, lightC);
     this.ceiling = new THREE.Group(); this.root.add(this.ceiling);
-    this.ceiling.add(M.mesh()); if (gableMesh) this.ceiling.add(gableMesh);
+    this.ceiling.add(M.mesh()); if (gableMesh) this.ceiling.add(gableMesh); if (this.vaultRibs) this.ceiling.add(this.vaultRibs);
     const lm = lights.mesh(); lm.material = new THREE.MeshBasicMaterial({ color: '#fffdf3' }); this.ceiling.add(lm);
     // Doghe chiare illuminate dai fari (si vedono dal basso anche se la luce generale arriva dall'alto).
     if (!bright.empty) this.ceiling.add(bright.mesh({ emissive: roofC.clone().multiplyScalar(0.45) }));

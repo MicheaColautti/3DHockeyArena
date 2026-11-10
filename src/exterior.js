@@ -4,16 +4,16 @@
 // finisce nella lista `night` restituita, e la vista ne regola l'intensità durante il tramonto.
 
 import * as THREE from 'three';
-import { TEAMS } from './teams.js?v=78';
-import { seeded, color, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect } from './common.js?v=78';
+import { TEAMS } from './teams.js?v=93';
+import { seeded, color, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect } from './common.js?v=93';
 
 const pick3 = (rand, list) => list[Math.floor(rand() * list.length)];
 const GROUND = { urban: '#8e8f88', alpine: '#6f8a55', grass: '#79925a', snow: '#e6ebf0' };
 
 // L'involucro deve contenere tutto il rettangolo interno: ottagono e angoli arrotondati vengono allargati quanto serve.
-function footprint(shape, X0, X1, Z0, Z1) {
+function footprint(shape, X0, X1, Z0, Z1, cut = 0.3, extra = 0) {
   const w = X1 - X0, d = Z1 - Z0;
-  if (shape === 'octagon') { const c = Math.min(w, d) * 0.3, e = c / 2 + 1; X0 -= e; X1 += e; Z0 -= e; Z1 += e; return [[X0 + c, Z0], [X1 - c, Z0], [X1, Z0 + c], [X1, Z1 - c], [X1 - c, Z1], [X0 + c, Z1], [X0, Z1 - c], [X0, Z0 + c]]; }
+  if (shape === 'octagon') { const c = Math.min(w, d) * cut, e = c / 2 + 1 + extra; X0 -= e; X1 += e; Z0 -= e; Z1 += e; return [[X0 + c, Z0], [X1 - c, Z0], [X1, Z0 + c], [X1, Z1 - c], [X1 - c, Z1], [X0 + c, Z1], [X0, Z1 - c], [X0, Z0 + c]]; }
   if (shape === 'rounded') { const r0 = Math.min(w, d) / 2 * 0.42, e = r0 * 0.3 + 1, hx = w / 2 + e, hz = d / 2 + e, mx = X0 + w / 2, mz = Z0 + d / 2; return roundedRect(hx, hz, Math.min(hx, hz) * 0.42, 7).map(([x, z]) => [x + mx, z + mz]); }
   return [[X0, Z0], [X1, Z0], [X1, Z1], [X0, Z1]];
 }
@@ -272,11 +272,33 @@ function glowPoints(list, glow, time, move = null) {
 
 /* ---------- edificio ---------- */
 
-export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, logo, time = { value: 0 }, glow = { value: 0 } }) {
+// Tetto della sala ottagonale di Davos (octaStar), come funzione pura: serve sia all'esterno sia alla vista, che ci
+// appoggia sotto le volte di legno (così il soffitto interno segue le falde e non buca mai la copertura).
+// Forma, in metri sopra la gronda: unione morbida di un padiglione che sale da tutti i bordi (pendenza `hip`, fino a
+// `plateau` × rise) e di due capanne strette che si incrociano al centro e sui lati dritti fanno i timpani (larghe gx, gz).
+export function octaRoof(A, EX, EZn, EZs) {
+  const E = A.exterior, O = E.octaStar, pad = 1.2, fp = footprint(E.shape, -EX - pad, EX + pad, -EZn - pad, EZs + pad, E.octCut, E.octPad);
+  const Hb = O.base ?? 7, U = grow(fp, -(O.inset ?? 2.5)), xs = U.map(q => q[0]), zs = U.map(q => q[1]);
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cz = (Math.min(...zs) + Math.max(...zs)) / 2, hx = (Math.max(...xs) - Math.min(...xs)) / 2, hz = (Math.max(...zs) - Math.min(...zs)) / 2;
+  const rise = O.rise ?? 28, sabs = d => Math.sqrt(d * d + 4) - 2, k = (O.soft ?? 0.16) * rise;
+  const smax = (p, q) => (p + q + Math.sqrt((p - q) * (p - q) + k * k)) / 2, smin = (p, q) => (p + q - Math.sqrt((p - q) * (p - q) + k * k)) / 2;
+  const edges = U.map((a, i) => { const b = U[(i + 1) % U.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]); let nx = -(b[1] - a[1]) / L, nz = (b[0] - a[0]) / L; if (nx * (cx - a[0]) + nz * (cz - a[1]) < 0) { nx = -nx; nz = -nz; } return [a, nx, nz]; });
+  const dist = (x, z) => Math.max(0, Math.min(...edges.map(([a, nx, nz]) => nx * (x - a[0]) + nz * (z - a[1]))));
+  const h = (x, z) => {
+    const hip = smin((O.hip ?? 0.85) * dist(x, z), rise * (O.plateau ?? 0.72));
+    const gA = rise * (1 - sabs(z - cz) / (hz * (O.gz ?? 0.75))), gB = rise * (1 - sabs(x - cx) / (hx * (O.gx ?? 0.5)));
+    return Hb + Math.max(0, smax(hip, smax(gA, gB)) - k * 0.3);
+  };
+  return { fp, U, Hb, cx, cz, rise, h };
+}
+
+export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = null, logo, time = { value: 0 }, glow = { value: 0 } }) {
   const E = A.exterior || {}, group = new THREE.Group(), rand = seeded(A.team + 'ext'), night = [];
   const nightMat = (mat, max = 1, prop = 'emissiveIntensity', min = 0) => { night.push({ mat, max: max - min, prop, min }); return mat; };
-  const pad = 1.2, X0 = -EX - pad, X1 = EX + pad, Z0 = -EZn - pad, Z1 = EZs + pad;
-  const H = E.height ?? (E.roof === 'star' && E.eaves ? E.eaves : roofY + (E.parapet ?? 1.5)), fp = footprint(E.shape, X0, X1, Z0, Z1);
+  const pad = 1.2, fp = footprint(E.shape, -EX - pad, EX + pad, -EZn - pad, EZs + pad, E.octCut, E.octPad);
+  // Di norma i dintorni partono dal rettangolo interno; con la sala ottagonale di Davos (octaStar) dal suo ingombro vero.
+  const out = !!E.octaStar, X0 = out ? Math.min(...fp.map(q => q[0])) : -EX - pad, X1 = out ? Math.max(...fp.map(q => q[0])) : EX + pad, Z0 = out ? Math.min(...fp.map(q => q[1])) : -EZn - pad, Z1 = out ? Math.max(...fp.map(q => q[1])) : EZs + pad;
+  const H = E.height ?? (E.octaStar ? E.octaStar.base ?? 7 : E.roof === 'star' && E.eaves ? E.eaves : roofY + (E.parapet ?? 1.5));
   // Blocco uffici addossato al lato sud (Berna): il terreno attorno, il piazzale e i dintorni partono dal suo fronte.
   const BK = E.block, Zs = Z1 + (BK ? BK.depth ?? 18 : 0);
   const occupied = [[X0 - 14, X1 + 14, Z0 - 14, Zs + 14]];
@@ -370,7 +392,38 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, logo, tim
       group.add(bol.mesh()); group.add(glowPoints(warmPts, glow, time)); }
   } else if (E.folded) facade = foldedHall();
   else if (E.stack) facade = stackedArena();
+  else if (E.octaStar) facade = octaHall();
   else { facade = new THREE.Mesh(stripGeometry(fp, 0, H, { closed: true, uScale }), facMat); group.add(facade); }
+
+  // Davos: base ottagonale vetrata (di sera dorata) con una gronda bianca tutt'attorno; sopra, arretrata, la sala coperta
+  // da un tetto a falde incrociate morbido (colmi e compluvi arrotondati, falde leggermente bombate). Lungo tutto il bordo
+  // del tetto una parete vetrata sale fino alla falda: sui quattro lati dritti diventa il grande timpano a punta.
+  function octaSpec() {
+    const R = octaRoof(A, EX, EZn, EZs), { U } = R;
+    // Perimetro fitto della sala (un punto ogni ~2,5 m), per seguire le punte dei timpani.
+    const perim = []; U.forEach((a, i) => { const b = U[(i + 1) % U.length], n = Math.max(1, Math.round(Math.hypot(b[0] - a[0], b[1] - a[1]) / 2.5)); for (let j = 0; j < n; j++) perim.push([a[0] + (b[0] - a[0]) * j / n, a[1] + (b[1] - a[1]) * j / n]); });
+    return { ...R, O: E.octaStar, perim };
+  }
+  function octaHall() {
+    const S = octaSpec(), { O, Hb, U, h, perim } = S, glow = E.glow || '#ffc879';
+    const glassMat = () => nightMat(new THREE.MeshLambertMaterial({ map: glazingTexture(), emissiveMap: glazingNightTexture(glow), emissive: color('#ffffff'), emissiveIntensity: 0.05, side: THREE.DoubleSide }), 1, 'emissiveIntensity', 0.05);
+    // Base vetrata ottagonale.
+    const base = new THREE.Mesh(stripGeometry(fp, 0, Hb - 0.5, { closed: true, uScale: 4 }), glassMat()); group.add(base);
+    // Gronda: soletta bianca che sporge, con il frontalino scuro e il soffitto sotto.
+    const L = grow(fp, O.ledge ?? 2.2), G = new Mesher(), white = color(E.roofColor || '#eef2f5'), fascia = color(E.eaveColor || '#3a2c22');
+    L.forEach((a, i) => { const b = L[(i + 1) % L.length], c2 = U[(i + 1) % U.length], d2 = U[i], f0 = fp[i], f1 = fp[(i + 1) % fp.length];
+      G.quad([a[0], Hb + 0.05, a[1]], [b[0], Hb + 0.05, b[1]], [c2[0], Hb + 0.05, c2[1]], [d2[0], Hb + 0.05, d2[1]], white);
+      G.quad([a[0], Hb - 0.5, a[1]], [b[0], Hb - 0.5, b[1]], [f1[0], Hb - 0.5, f1[1]], [f0[0], Hb - 0.5, f0[1]], color('#2a2420'));
+      G.quad([a[0], Hb - 0.5, a[1]], [b[0], Hb - 0.5, b[1]], [b[0], Hb + 0.05, b[1]], [a[0], Hb + 0.05, a[1]], fascia); });
+    group.add(G.mesh());
+    // Parete vetrata sotto le falde, su tutto il perimetro della sala (i timpani).
+    const wg = stripGeometry(perim, Hb, p => h(p[0], p[1]) - 0.05, { closed: true, uScale: 4 }), wp = wg.attributes.position, wu = wg.attributes.uv;
+    for (let i = 0; i < wp.count; i++) wu.setY(i, (wp.getY(i) - Hb) / 6); // traversi orizzontali dritti, uno ogni 6 m, anche sotto le punte
+    const wall = new THREE.Mesh(wg, glassMat()); group.add(wall);
+    for (const [x, z] of perim.filter((_, i) => i % 3 === 0)) windows.push({ x: x + Math.sign(x - S.cx) * 0.3, y: Hb * 0.5, z: z + Math.sign(z - S.cz) * 0.3, c: '#ffd59a', s: 1.4 });
+    occupy(X0 - 3, X1 + 3, Z0 - 3, Z1 + 3);
+    return base;
+  }
 
   // Friburgo: tre livelli con stacchi netti.
   //  - base: fascia di pannelli sfaccettati che sporge di `base.out` (su tre lati; sul fronte sud c'è la vetrata degli ingressi)
@@ -555,7 +608,17 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, logo, tim
     geo.rotateX(-Math.PI / 2); const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: roofTexture(material, E.roofColor) })); m.position.y = y; roof.add(m); return m;
   };
   const parapet = (poly, y0, y1) => roof.add(new THREE.Mesh(stripGeometry(poly, y0, y1, { closed: true }), new THREE.MeshLambertMaterial({ color: color(E.wall || '#8d9096').multiplyScalar(0.85), side: THREE.DoubleSide })));
-  if (E.stack) {
+  if (E.octaStar) {
+    // Tetto morbido sulla sala ottagonale: maglia ad anelli dal centro al bordo, quote da octaSpec().h.
+    const S = octaSpec(), P = S.perim, NR = 22, pos = [], idx = [];
+    for (let r = 0; r <= NR; r++) for (const [x, z] of P) { const u = r / NR, px = S.cx + (x - S.cx) * u, pz = S.cz + (z - S.cz) * u; pos.push(px, S.h(px, pz), pz); }
+    const n = P.length; for (let r = 0; r < NR; r++) for (let i = 0; i < n; i++) { const a = r * n + i, b = r * n + (i + 1) % n, c2 = (r + 1) * n + (i + 1) % n, d2 = (r + 1) * n + i; idx.push(a, d2, b, b, d2, c2); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+    roof.add(new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: E.roofColor || '#eef2f5', side: THREE.DoubleSide })));
+    // Bordo scuro sottile lungo la falda, sopra la parete vetrata.
+    roof.add(new THREE.Mesh(stripGeometry(P, p => S.h(p[0], p[1]) - 0.05, p => S.h(p[0], p[1]) + 0.45, { closed: true }), new THREE.MeshLambertMaterial({ color: E.eaveColor || '#3a2c22', side: THREE.DoubleSide })));
+    top = S.Hb + S.rise;
+  } else if (E.stack) {
     // Tetto piano della scatola alta (sporge come lei), con parapetto e qualche impianto.
     const to = E.stack.top?.out ?? 7, up = fp.map(([x, z]) => [x + Math.sign(x - (X0 + X1) / 2) * to, z + Math.sign(z - (Z0 + Z1) / 2) * to]);
     flatTop(up, H + 0.02, E.roofMat || 'metal'); parapet(up, H, H + 0.8);
@@ -676,6 +739,7 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, logo, tim
   // Insegna sul lato principale (sud).
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(30, 4.7), new THREE.MeshBasicMaterial({ map: signTexture(A, logo), transparent: true }));
   sign.position.set(E.signX ?? 0, E.signAt ? H * E.signAt : Math.min(H - 3, 9), Z1 + (E.overhang ? E.overhang.out ?? 2.2 : 0) + 0.15); group.add(sign);
+  if (E.octaStar) sign.position.set(0, Math.max(2.4, H * 0.45), Z1 + 0.2);
   if (E.stack) {
     // Friburgo: scritta BCF ARENA sulla scatola alta, a sinistra del fronte, e sul risvolto della testata est.
     const to = E.stack.top?.out ?? 7, H2 = E.stack.top?.from ?? H * 0.52;
