@@ -7,14 +7,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { TEAMS } from './teams.js?v=46';
-import { ARENAS } from './arenas.js?v=46';
-import { POSITIONS, placeholderLineup } from './lineups.js?v=46';
-import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=46';
-import { iceTexture, boardsTexture, ledTexture, suitesTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=46';
-import { lambert, disposeObject, makePlayer } from './players.js?v=46';
-import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=46';
-import { buildExterior } from './exterior.js?v=46';
+import { TEAMS } from './teams.js?v=59';
+import { ARENAS } from './arenas.js?v=59';
+import { POSITIONS, placeholderLineup } from './lineups.js?v=59';
+import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=59';
+import { iceTexture, boardsTexture, ledTexture, suitesTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=59';
+import { lambert, disposeObject, makePlayer } from './players.js?v=59';
+import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=59';
+import { buildExterior } from './exterior.js?v=59';
 
 export { RINK };
 const NEUTRALS = ['#2b2f36', '#3c4048', '#56606b', '#e6e6e6', '#1d2a44', '#5b4636', '#8a8f99', '#1a1a1a', '#6f7f8f', '#a33a3a', '#3f5f3f'];
@@ -305,7 +305,7 @@ export class ArenaView {
       const P = S.profile;
       roofBase = Math.max(roofBase, P.top);
       // Curva in piedi di casa: niente scale tra i settori, solo due passaggi vicino al centro (A.home.aisles).
-      const curveSec = this.isCurve(S), vom = curveSec && S.kind === 'straight' ? this.vomitories(S) : null, cuts = [...zoneCuts(A, S), ...(vom ? vom.cuts : [])], upperFrom = st.upperSeats ? Math.floor(P.rows.length * st.upperSeats.from) : Infinity, upperC = st.upperSeats && color(st.upperSeats.color);
+      const curveSec = this.isCurve(S), vom = curveSec && S.kind === 'straight' ? this.vomitories(S) : null, cuts = [...zoneCuts(A, S), ...(vom ? vom.cuts : []), ...(S.fill ? [0.47, 0.53] : [])], upperFrom = st.upperSeats ? Math.floor(P.rows.length * st.upperSeats.from) : Infinity, upperC = st.upperSeats && color(st.upperSeats.color);
       P.rows.forEach((R, ri) => {
         const ts = sectionTs(S, 0, 1, 7, cuts), at = d => ts.map(t => { const q = sectionPoint(S, t, d); return [q.x, q.z]; });
         const inner = at(R.d), outer = at(R.d + R.depth);
@@ -319,6 +319,18 @@ export class ArenaView {
           else if (st.seatPattern === 'random') seat = pick(rand, seats);
           else seat = seats[0];
           const a = inner[i], b = inner[i + 1], c = outer[i + 1], d = outer[i];
+          // Blocco d'angolo in discesa: ogni fila è più alta verso il lato lungo e scende verso la curva.
+          if (S.fill && A.cornerDrop) {
+            const hd = t => A.cornerDrop * (1 - t), yA = R.h - hd(ts[i]), yB = R.h - hd(ts[i + 1]);
+            const bA = ri === 0 ? 0 : R.below - hd(ts[i]), bB = ri === 0 ? 0 : R.below - hd(ts[i + 1]);
+            const stair = ts[i] >= 0.469 && ts[i + 1] <= 0.531; // scala al centro del triangolo
+            M.quad([a[0], yA, a[1]], [b[0], yB, b[1]], [c[0], yB, c[1]], [d[0], yA, d[1]], stair ? aisle : seat);
+            if (stair) { M.quad([a[0], bA, a[1]], [b[0], bB, b[1]], [b[0], yB, b[1]], [a[0], yA, a[1]], aisle.clone().multiplyScalar(0.8)); continue; }
+            M.quad([a[0], bA, a[1]], [b[0], bB, b[1]], [b[0], yB, b[1]], [a[0], yA, a[1]], ri === 0 ? conc : riser);
+            const ba = lerp2(a, d, 0.78), bb = lerp2(b, c, 0.78);
+            M.quad([ba[0], yA, ba[1]], [bb[0], yB, bb[1]], [bb[0], yB + 0.42, bb[1]], [ba[0], yA + 0.42, ba[1]], seat.clone().multiplyScalar(0.78));
+            continue;
+          }
           // Vomitorio: un'apertura nella gradinata con pavimento scuro e pareti laterali, niente gradini.
           if (vom && R.standing && vom.at((ts[i] + ts[i + 1]) / 2)) {
             const fy = P.rows[vom.r0].below;
@@ -329,7 +341,7 @@ export class ArenaView {
             }
             if (ri === vom.r1 + 1) { M.quad([a[0], fy, a[1]], [b[0], fy, b[1]], [b[0], R.h, b[1]], [a[0], R.h, a[1]], color('#121315')); M.quad([a[0], R.h, a[1]], [b[0], R.h, b[1]], [c[0], R.h, c[1]], [d[0], R.h, d[1]], seat); continue; }
           }
-          const segLen = Math.hypot(b[0] - a[0], b[1] - a[1]), hasAisle = curveSec && R.standing ? false : S.kind === 'straight' ? segLen > 3 : i % 3 === 2 && segLen > 1.5;
+          const segLen = Math.hypot(b[0] - a[0], b[1] - a[1]), hasAisle = A.noAisles || (curveSec && R.standing) ? false : S.fill ? i === Math.floor((inner.length - 1) / 2) - 1 : S.kind === 'straight' ? segLen > 3 : i % 3 === 2 && segLen > 1.5;
           const u = hasAisle ? 1 - Math.min(0.45, 1.1 / Math.max(segLen, 0.1)) : 1;
           const a2 = lerp2(a, b, u), d2 = lerp2(d, c, u);
           M.quad([a[0], R.h, a[1]], [a2[0], R.h, a2[1]], [d2[0], R.h, d2[1]], [d[0], R.h, d[1]], seat);
@@ -344,6 +356,13 @@ export class ArenaView {
           M.quad([a[0], R.below, a[1]], [b[0], R.below, b[1]], [b[0], R.h, b[1]], [a[0], R.h, a[1]], ri === 0 ? conc : front);
         }
         if (S.kind === 'straight') for (const k of [0, inner.length - 1]) M.quad([inner[k][0], 0, inner[k][1]], [outer[k][0], 0, outer[k][1]], [outer[k][0], R.h, outer[k][1]], [inner[k][0], R.h, inner[k][1]], conc);
+        // Blocchi d'angolo: muri alti e chiari che delimitano il triangolo, ben visibili da tutta l'arena.
+        if (S.fill && A.cornerWalls) for (const k of [0, inner.length - 1]) {
+          // Muri neri sul confine, spostati dentro l'angolo così non tagliano le tribune vicine.
+          const drop = (A.cornerDrop || 0) * (k ? 0 : 1), top = Math.max(R.h - drop + 2.4, (P.top - drop) * 0.7);
+          const ox = k ? Math.sign(S.cx) : 0, oz = k ? 0 : Math.sign(S.cz);
+          for (const off of [0.08, 0.5]) M.quad([inner[k][0] + ox * off, 0, inner[k][1] + oz * off], [outer[k][0] + ox * off, 0, outer[k][1] + oz * off], [outer[k][0] + ox * off, top, outer[k][1] + oz * off], [inner[k][0] + ox * off, top, inner[k][1] + oz * off], color('#141517'));
+        }
         if (R.standing && ri % 4 === 3) { const l = sectionLine(S, R.d + 0.08); for (let i = 0; i < l.length - 1; i++) M.beam([l[i][0], R.h + 1.0, l[i][1]], [l[i + 1][0], R.h + 1.0, l[i + 1][1]], 0.05, rails); }
       });
       for (const f of P.floors) { const a = sectionLine(S, f.d0), b = sectionLine(S, f.d1); for (let i = 0; i < a.length - 1; i++) M.quad([a[i][0], f.h, a[i][1]], [a[i + 1][0], f.h, a[i + 1][1]], [b[i + 1][0], f.h, b[i + 1][1]], [b[i][0], f.h, b[i][1]], floorC); }
@@ -591,14 +610,19 @@ export class ArenaView {
       P.rows.forEach((R, ri) => {
         const spacing = (R.standing ? 0.56 : 0.62) / density;
         for (const p of samplePolyline(sectionLine(S, R.d + R.depth * 0.55), spacing, rand, 0.14)) {
-          if (this.isCurve(S) && R.standing) { const v = S.kind === 'straight' && this.vomitories(S); if (v && ri >= v.r0 && ri <= v.r1 && v.at(p.t)) continue; }
+          if (S.fill && Math.abs(p.t - 0.5) < 0.045) continue;
+          if (A.noAisles) { /* tribune continue, senza scale */ }
+          else if (this.isCurve(S) && R.standing) { const v = S.kind === 'straight' && this.vomitories(S); if (v && ri >= v.r0 && ri <= v.r1 && v.at(p.t)) continue; }
+          else if (S.fill) { if (Math.abs(p.t - 0.5) < 0.06) continue; } // scala al centro dell'angolo
           else if (segLen && (p.t * S.len) % segLen > segLen - 1.15) continue; // scale tra i settori
+          if (A.corners === 'fill' && S.kind === 'straight' && (p.t * S.len < 0.7 || (1 - p.t) * S.len < 0.7)) continue;
+          const fy = S.fill && A.cornerDrop ? R.h - A.cornerDrop * (1 - p.t) : R.h;
           const zone = zoneAt(A, S, p.t, R);
           const occ = zone === 'curve' ? 0.97 : zone === 'guest' ? 0.92 : zone === 'standing' ? 0.93 : A.occupancy ?? 0.88;
           if (rand() > occ) continue;
           const shirt = weighted(rand, mixes[zone]);
           const bounce = zone === 'curve' ? 0.1 + rand() * 0.08 : zone === 'guest' ? 0.08 + rand() * 0.07 : zone === 'standing' ? 0.05 + rand() * 0.05 : 0;
-          fans.push({ x: p.x, z: p.z, y: R.h, yaw: Math.atan2(-p.dz, p.dx), standing: R.standing || zone === 'guest', shirt, head: rand() < 0.12 ? (zone === 'guest' ? TA.primary : TH.primary) : pick(rand, SKIN), bounce, phase: rand() * 6.28 });
+          fans.push({ x: p.x, z: p.z, y: fy, yaw: Math.atan2(-p.dz, p.dx), standing: R.standing || zone === 'guest', shirt, head: rand() < 0.12 ? (zone === 'guest' ? TA.primary : TH.primary) : pick(rand, SKIN), bounce, phase: rand() * 6.28 });
           const flagChance = zone === 'curve' ? (ri > 0 ? 0.085 : 0) : zone === 'standing' ? 0.025 : zone === 'guest' ? 0.07 : 0;
           if (rand() < flagChance) (zone === 'guest' ? flags.away : flags.home).push({ ...p, y: R.h, big: zone === 'curve' && rand() < 0.07, design: rand(), phase: rand() * 6.28 });
         }
@@ -618,9 +642,13 @@ export class ArenaView {
       if (rows.length) for (const t of [G.from ?? 0, G.to ?? 1]) {
         if (t <= 0.001 || t >= 0.999) continue;
         const a = sectionPoint(S, t, rows[0].d), b = sectionPoint(S, t, rows.at(-1).d + rows.at(-1).depth);
-        net.quad([a.x, rows[0].below, a.z], [b.x, rows.at(-1).h, b.z], [b.x, rows.at(-1).h + 2.4, b.z], [a.x, rows[0].h + 2.4, a.z], k);
+        if (A.guestWall) {
+          // Muretto pieno che separa gli ospiti dai tifosi di casa, a gradini come la tribuna.
+          for (const R of rows) { const p0 = sectionPoint(S, t, R.d), p1 = sectionPoint(S, t, R.d + R.depth), w = 0.12, ox = p0.nz * w, oz = -p0.nx * w;
+            net.box((p0.x + p1.x) / 2, R.h + 0.6, (p0.z + p1.z) / 2, Math.abs(p1.x - p0.x) + Math.abs(ox) * 2 + 0.05, 1.2, Math.abs(p1.z - p0.z) + Math.abs(oz) * 2 + 0.05, color('#8d9095')); }
+        } else net.quad([a.x, rows[0].below, a.z], [b.x, rows.at(-1).h, b.z], [b.x, rows.at(-1).h + 2.4, b.z], [a.x, rows[0].h + 2.4, a.z], k);
       }
-      if (!net.empty) this.awayLayer.add(net.mesh({ transparent: true, opacity: 0.28, depthWrite: false }));
+      if (!net.empty) this.awayLayer.add(A.guestWall ? net.mesh() : net.mesh({ transparent: true, opacity: 0.28, depthWrite: false }));
     }
     const bm = new Mesher(), kA = color(TA.primary), [x0, x1] = this.benchAwayRange, z1 = RINK.halfW + 2.6;
     bm.box((x0 + x1) / 2, 0.76, z1 - 0.09, x1 - x0, 1.52, 0.22, kA); bm.box((x0 + x1) / 2, 0.49, z1 - 0.55, x1 - x0, 0.11, 0.5, kA.clone().multiplyScalar(0.7));

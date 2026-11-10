@@ -16,6 +16,8 @@
 const seated = (rows, rise = 0.44, depth = 0.82, more = {}) => ({ rows, rise, depth, ...more });
 const standing = (rows, rise = 0.38, depth = 0.55, more = {}) => ({ rows, rise, depth, standing: true, ...more });
 const upper = (rows, rise, depth, fascia = 'led', gap = { depth: 1.8, rise: 2.6 }) => ({ rows, rise, depth, gap, fascia });
+// Balconata: anello superiore corto, con fascia LED davanti.
+const balcony = (rows = 4) => ({ rows, rise: 0.52, depth: 0.8, gap: { depth: 1.2, rise: 2.2 }, fascia: 'led' });
 const suites = (rows = 3) => ({ rows, rise: 0.5, depth: 0.9, gap: { depth: 2, rise: 3.2 }, fascia: 'suites' });
 
 export const ARENAS = {
@@ -50,22 +52,22 @@ export const ARENAS = {
     facts: ['Curva Nord, Curva San Salvatore e Curva Ospiti', 'Ospiti sul lato corto, accanto alla San Salvatore', 'Tribune su due livelli ai lati', 'Acustica tra le più famose della lega'],
     gaps: { side: 2.4, bench: 4.4, end: 3.2 },
     stands: {
-      north: { base: 1.4, tiers: [seated(10, 0.42, 0.82), upper(8, 0.48, 0.8, 'suites', { depth: 1.4, rise: 2.4 })] },
-      south: { base: 1.4, tiers: [seated(10, 0.42, 0.82), upper(8, 0.48, 0.8, 'suites', { depth: 1.4, rise: 2.4 })] },
-      west: { base: 2.4, tiers: [standing(22, 0.38, 0.55), suites(2)] },
-      east: { base: 2.2, tiers: [standing(18, 0.38, 0.55)] },
+      north: { base: 1.4, tiers: [seated(10, 0.42, 0.82), upper(8, 0.48, 0.8, 'suites', { depth: 1.4, rise: 2.4 }), balcony()] },
+      south: { base: 1.4, tiers: [seated(10, 0.42, 0.82), upper(8, 0.48, 0.8, 'suites', { depth: 1.4, rise: 2.4 }), balcony()] },
+      west: { base: 2.4, tiers: [standing(22, 0.38, 0.55), suites(2), balcony()] },
+      east: { base: 2.2, tiers: [standing(18, 0.38, 0.55), upper(8, 0.5, 0.8, 'suites', { depth: 1.4, rise: 2.4 }), balcony()] },
     },
-    corners: { west: 'end' },
-    cornerStyle: 'chamfer',
+    corners: { west: 'end', east: 'end' },
+    noAisles: true, guestWall: true,
     home: { side: 'west' },
-    standing: [{ side: 'east', from: 0, to: 0.6 }],
-    guest: { side: 'east', from: 0.64, to: 1 },
-    led: { boards: true, rim: true },
+    standing: [{ side: 'east', corner: 'north', tier: 0 }, { side: 'east', from: 0, to: 0.5, tier: 0 }],
+    guest: { side: 'east', from: 0.54, to: 1, tier: 0, corner: 'south' },
+    led: { boards: true, rim: false },
     roof: { type: 'truss', clear: 6.5, color: '#2a2d32', steel: '#d5d8dc', cross: true },
     cube: { w: 6, h: 3.4 },
     style: { concrete: '#5c5f64', riser: '#4a4d52', wall: '#2c2f34', floor: '#24262a', seats: ['#25282d', '#25282d', '#c98a1c'], seatPattern: 'rows' },
     light: { tint: '#fff6e6', ambient: 1, key: 1 },
-    exterior: { shape: 'rect', wall: '#d3cfc6', facade: 'hallglass', uScale: 30, roof: 'barrel', roofMat: 'metal', roofColor: '#9ea2a6', rise: 4.5, eaveOut: 1.2, capsGlass: true, glow: '#f6f2e4', roofVents: { n: 3, color: '#c0392b' }, ledges: [0.5, 0.995], ledgeColor: '#e6e3dc',
+    exterior: { shape: 'rect', wall: '#d3cfc6', facade: 'hallglass', uScale: 30, roof: 'barrel', roofMat: 'metal', roofColor: '#9ea2a6', rise: 4.5, eaveOut: 1.2, capsGlass: true, glow: '#f6f2e4', ledges: [0.5, 0.995], ledgeColor: '#e6e3dc',
       ground: 'urban', mountains: 22, mountainDist: 470, trees: 50, conifers: false,
       features: [
         { type: 'hall', side: 'south', dist: 14, w: 36, len: 64, h: 12, color: '#3b3f45', roof: 'gable', solar: true, rise: 2.5, offset: -6 },

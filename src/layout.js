@@ -2,7 +2,7 @@
 // Convenzione: x lungo la pista, z in larghezza. Nord = z < 0 (lato lontano dalla telecamera), sud = z > 0 (panchine).
 // Ovest = x < 0, est = x > 0. Lungo una sezione t va da 0 a 1: da ovest a est sui lati lunghi, da nord a sud sui lati corti.
 
-import { RINK } from './common.js?v=46';
+import { RINK } from './common.js?v=59';
 
 export const SIDES = ['north', 'south', 'west', 'east'];
 
@@ -40,6 +40,24 @@ export function buildLayout(A) {
   const P = Object.fromEntries(SIDES.map(k => [k, makeProfile(A.stands[k])]));
   // Angoli: false = aperti; true = tribune laterali che girano; { west: 'end' } = la curva ovest avvolge i suoi angoli.
   // Dove l'angolo è chiuso, le file seguono la curva della balaustra (archi concentrici agli angoli della pista).
+  // 'fill' = i quattro lati arrivano dritti fino in fondo e un blocco d'angolo a cuneo li unisce (Lugano):
+  // file diagonali, profilo proprio (stands.corner, più basso dei lati), scala al centro.
+  if (A.corners === 'fill') {
+    const Pc = A.stands.corner ? makeProfile(A.stands.corner) : null;
+    const sections = [
+      { key: 'north', kind: 'straight', ox: 0, oz: -zn, dx: 1, dz: 0, nx: 0, nz: -1, len: 2 * ex, profile: P.north },
+      { key: 'south', kind: 'straight', ox: 0, oz: zs, dx: 1, dz: 0, nx: 0, nz: 1, len: 2 * ex, profile: P.south },
+      { key: 'west', kind: 'straight', ox: -ex, oz: (zs - zn) / 2, dx: 0, dz: 1, nx: -1, nz: 0, len: zn + zs, profile: P.west },
+      { key: 'east', kind: 'straight', ox: ex, oz: (zs - zn) / 2, dx: 0, dz: 1, nx: 1, nz: 0, len: zn + zs, profile: P.east },
+    ];
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      const endKey = sx < 0 ? 'west' : 'east', side = sz < 0 ? 'north' : 'south';
+      const a0 = Math.atan2(0, sx); let a1 = Math.atan2(sz, 0);
+      if (Math.abs(a1 - a0) > Math.PI) a1 += a1 < a0 ? 2 * Math.PI : -2 * Math.PI;
+      sections.push({ key: `corner-${endKey}-${side}`, kind: 'arc', cx: sx * ex, cz: sz < 0 ? -zn : zs, rx: 0, rz: 0, a0, a1, end: endKey, side, wrap: false, profile: Pc || P[side], chamfer: true, chamferFrom: -1, fill: true });
+    }
+    return { sections, ex, zn, zs, profiles: P };
+  }
   const corners = A.corners === true ? { west: 'side', east: 'side' } : (A.corners || {});
   const cx = halfL - corner, cz = halfW - corner;
   const x0 = corners.west ? -cx : -ex, x1 = corners.east ? cx : ex;
