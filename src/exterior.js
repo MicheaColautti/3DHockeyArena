@@ -4,8 +4,8 @@
 // finisce nella lista `night` restituita, e la vista ne regola l'intensità durante il tramonto.
 
 import * as THREE from 'three';
-import { TEAMS } from './teams.js?v=24';
-import { seeded, color, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect } from './common.js?v=24';
+import { TEAMS } from './teams.js?v=37';
+import { seeded, color, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect } from './common.js?v=37';
 
 const pick3 = (rand, list) => list[Math.floor(rand() * list.length)];
 const GROUND = { urban: '#8e8f88', alpine: '#6f8a55', grass: '#79925a', snow: '#e6ebf0' };
@@ -219,7 +219,7 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, logo, time = { value: 0 
   const E = A.exterior || {}, group = new THREE.Group(), rand = seeded(A.team + 'ext'), night = [];
   const nightMat = (mat, max = 1, prop = 'emissiveIntensity', min = 0) => { night.push({ mat, max: max - min, prop, min }); return mat; };
   const pad = 1.2, X0 = -EX - pad, X1 = EX + pad, Z0 = -EZn - pad, Z1 = EZs + pad;
-  const H = E.roof === 'star' && E.eaves ? E.eaves : roofY + (E.parapet ?? 1.5), fp = footprint(E.shape, X0, X1, Z0, Z1);
+  const H = E.height ?? (E.roof === 'star' && E.eaves ? E.eaves : roofY + (E.parapet ?? 1.5)), fp = footprint(E.shape, X0, X1, Z0, Z1);
   const occupied = [[X0 - 14, X1 + 14, Z0 - 14, Z1 + 14]];
   const occupy = (x0, x1, z0, z1) => occupied.push([Math.min(x0, x1), Math.max(x0, x1), Math.min(z0, z1), Math.max(z0, z1)]);
   const lamps = [], windows = [], pools = [];
@@ -246,9 +246,9 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, logo, time = { value: 0 
 
   // Terreno e piazzale.
   const groundC = GROUND[E.ground] || GROUND.grass, snow = E.ground === 'snow';
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(2400, 2400), new THREE.MeshLambertMaterial({ color: groundC }));
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(5000, 5000), new THREE.MeshLambertMaterial({ color: E.meadows ? '#76924f' : groundC }));
   ground.rotation.x = -Math.PI / 2; ground.position.y = -0.06; group.add(ground);
-  const plaza = (cx, cz, lx, lz, c = '#b8b5ad') => { const m = new THREE.Mesh(new THREE.PlaneGeometry(lx, lz), new THREE.MeshLambertMaterial({ color: c })); m.rotation.x = -Math.PI / 2; m.position.set(cx, -0.03, cz); group.add(m); return m; };
+  const plaza = (cx, cz, lx, lz, c = '#b8b5ad') => { const m = new THREE.Mesh(new THREE.PlaneGeometry(lx, lz), new THREE.MeshLambertMaterial({ color: c })); m.rotation.x = -Math.PI / 2; m.position.set(cx, 0.01, cz); group.add(m); return m; };
   plaza((X0 + X1) / 2, (Z0 + Z1) / 2, X1 - X0 + 28, Z1 - Z0 + 28, snow ? '#cdd3d9' : '#b8b5ad');
   for (let x = X0 - 12; x <= X1 + 12; x += 18) { lampAt(x, Z0 - 12, 7); lampAt(x, Z1 + 12, 7); }
   for (let z = Z0 + 6; z <= Z1 - 6; z += 18) { lampAt(X0 - 12, z, 7); lampAt(X1 + 12, z, 7); }
@@ -256,7 +256,60 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, logo, time = { value: 0 
   // Facciata (e fascia superiore sporgente, se c'è).
   const fac = facadeTextures(E), uScale = E.uScale ?? 18;
   const facMat = nightMat(new THREE.MeshLambertMaterial({ map: fac.day, emissiveMap: fac.night, emissive: color('#ffffff'), emissiveIntensity: 0, side: THREE.DoubleSide }), E.nightPower ?? 1.1);
-  const facade = new THREE.Mesh(stripGeometry(fp, 0, H, { closed: true, uScale }), facMat); group.add(facade);
+  let facade;
+  if (E.podium) {
+    // Basamento in cemento più largo (cortile e passaggi tutt'attorno, scale davanti), piano vetrato arretrato,
+    // poi la scatola dell'arena che sporge sopra il vetro (Gottardo).
+    const P = E.podium, ph = P.h ?? 3.5, rh = E.recess?.h ?? 4, rin = E.recess?.in ?? 2.5, base = grow(fp, P.out ?? 7), conc = color(P.color || '#bdbcb7');
+    const B = new Mesher();
+    // Basamento con rientranze: le scalinate entrano nel cemento e salgono fino al cortile.
+    const n = 14, run = 0.45, depth = n * run, bx0 = base[0][0], bx1 = base[1][0], bz0 = base[0][1], bz1 = base[2][1];
+    const notches = [[-5, 5, bz0, bz0 + depth, 'z', 1], [-5, 5, bz1 - depth, bz1, 'z', -1], [bx0, bx0 + depth, -4, 4, 'x', 1], [bx1 - depth, bx1, -4, 4, 'x', -1]];
+    const inNotch = (x, z) => notches.some(([x0, x1, z0, z1]) => x > x0 && x < x1 && z > z0 && z < z1);
+    const topC = color(P.top || '#9fa09c'), wallC = conc.clone().multiplyScalar(0.9);
+    for (let x = bx0; x < bx1 - 1e-3; x += 1) for (let z = bz0; z < bz1 - 1e-3; z += 1) {
+      const x2 = Math.min(bx1, x + 1), z2 = Math.min(bz1, z + 1);
+      if (!inNotch((x + x2) / 2, (z + z2) / 2)) B.quad([x, ph, z], [x2, ph, z], [x2, ph, z2], [x, ph, z2], topC);
+    }
+    const wallRun = (a0, a1, fixed, along) => { for (let u = a0; u < a1 - 1e-3; u += 1) { const u2 = Math.min(a1, u + 1), m = (u + u2) / 2; if (along === 'x' ? inNotch(m, fixed + (fixed === bz0 ? 0.01 : -0.01)) : inNotch(fixed + (fixed === bx0 ? 0.01 : -0.01), m)) continue; if (along === 'x') B.quad([u, 0, fixed], [u2, 0, fixed], [u2, ph, fixed], [u, ph, fixed], wallC); else B.quad([fixed, 0, u], [fixed, 0, u2], [fixed, ph, u2], [fixed, ph, u], wallC); } };
+    wallRun(bx0, bx1, bz0, 'x'); wallRun(bx0, bx1, bz1, 'x'); wallRun(bz0, bz1, bx0, 'z'); wallRun(bz0, bz1, bx1, 'z');
+    for (const [x0, x1, z0, z1, axis, dir] of notches) {
+      if (axis === 'z') {
+        const zs = dir > 0 ? z0 : z1;
+        for (let k = 0; k < n; k++) { const h = ph * (k + 1) / n, zc = zs + dir * (k * run + run / 2); B.box((x0 + x1) / 2, h / 2, zc, x1 - x0, h, run + 0.02, conc); }
+        for (const x of [x0, x1]) B.quad([x, 0, z0], [x, 0, z1], [x, ph, z1], [x, ph, z0], wallC);
+        const ze = dir > 0 ? z1 : z0; B.quad([x0, 0, ze], [x1, 0, ze], [x1, ph, ze], [x0, ph, ze], wallC);
+      } else {
+        const xs = dir > 0 ? x0 : x1;
+        for (let k = 0; k < n; k++) { const h = ph * (k + 1) / n, xc = xs + dir * (k * run + run / 2); B.box(xc, h / 2, (z0 + z1) / 2, run + 0.02, h, z1 - z0, conc); }
+        for (const z of [z0, z1]) B.quad([x0, 0, z], [x1, 0, z], [x1, ph, z], [x0, ph, z], wallC);
+        const xe = dir > 0 ? x1 : x0; B.quad([xe, 0, z0], [xe, 0, z1], [xe, ph, z1], [xe, ph, z0], wallC);
+      }
+    }
+    const rail = color('#9aa0a6'); base.forEach((a, i) => { const b = base[(i + 1) % base.length]; B.beam([a[0], ph + 1, a[1]], [b[0], ph + 1, b[1]], 0.06, rail); });
+    group.add(B.mesh());
+    const inner = grow(fp, -rin), glassG = stripGeometry(inner, ph, ph + rh, { closed: true, uScale }), gu = glassG.attributes.uv;
+    for (let i = 0; i < gu.count; i++) gu.setY(i, 0.04 + gu.getY(i) * 0.4);
+    group.add(new THREE.Mesh(glassG, facMat));
+    const band = stripGeometry(fp, ph + rh, H, { closed: true, uScale }), bu = band.attributes.uv;
+    for (let i = 0; i < bu.count; i++) bu.setY(i, 0.5 + bu.getY(i) * 0.5);
+    facade = new THREE.Mesh(band, facMat); group.add(facade);
+    const S = new Mesher(), soff = color('#2a2c30'); fp.forEach((a, i) => { const b = fp[(i + 1) % fp.length], c2 = inner[(i + 1) % inner.length], d = inner[i]; S.quad([a[0], ph + rh, a[1]], [b[0], ph + rh, b[1]], [c2[0], ph + rh, c2[1]], [d[0], ph + rh, d[1]], soff); });
+    group.add(S.mesh());
+    // Di sera: luce blu lungo i fianchi, sotto lo sbalzo e sul bordo del cortile.
+    if (E.sideGlow) {
+      const blue = nightMat(new THREE.MeshBasicMaterial({ color: E.sideGlow, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }), 0.95, 'opacity');
+      group.add(new THREE.Mesh(stripGeometry(grow(fp, 0.05), ph + rh - 0.5, ph + rh - 0.1, { closed: true }), blue));
+      const pts = []; base.forEach((a, i) => { const b = base[(i + 1) % base.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]); for (let u = 0; u < L; u += 4) { const t = u / L; pts.push({ x: a[0] + (b[0] - a[0]) * t, y: ph + 0.3, z: a[1] + (b[1] - a[1]) * t, c: E.sideGlow, s: 1.8 }); } });
+      fp.forEach((a, i) => { const b = fp[(i + 1) % fp.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]); for (let u = 0; u < L; u += 3) { const t = u / L; pts.push({ x: a[0] + (b[0] - a[0]) * t, y: ph + rh + 0.4, z: a[1] + (b[1] - a[1]) * t, c: E.sideGlow, s: 2.4 }); } });
+      group.add(glowPoints(pts, glow, time));
+    }
+    // Piccole luci di cortesia sul basamento: paletti lungo il cortile e segnapasso sulle scalinate.
+    { const warmPts = [], bol = new Mesher(), k = color('#4b4f55'), ring = grow(fp, (P.out ?? 7) * 0.55);
+      ring.forEach((a2, i) => { const b2 = ring[(i + 1) % ring.length], L = Math.hypot(b2[0] - a2[0], b2[1] - a2[1]); for (let u = 2; u < L; u += 6) { const t = u / L, x = a2[0] + (b2[0] - a2[0]) * t, z = a2[1] + (b2[1] - a2[1]) * t; bol.box(x, ph + 0.45, z, 0.2, 0.9, 0.2, k); warmPts.push({ x, y: ph + 0.95, z, c: '#ffd9a0', s: 1.1 }); } });
+      for (const [x0, x1, z0, z1] of notches) for (const [x, z] of [[x0 + 0.3, z0], [x1 - 0.3, z0], [x0 + 0.3, z1], [x1 - 0.3, z1], [x0, z0 + 0.3], [x0, z1 - 0.3], [x1, z0 + 0.3], [x1, z1 - 0.3]]) warmPts.push({ x, y: ph * 0.5, z, c: '#ffe2b5', s: 0.9 });
+      group.add(bol.mesh()); group.add(glowPoints(warmPts, glow, time)); }
+  } else { facade = new THREE.Mesh(stripGeometry(fp, 0, H, { closed: true, uScale }), facMat); group.add(facade); }
   if (E.overhang) {
     const out = grow(fp, E.overhang.out ?? 2.2), y0 = H * (E.overhang.from ?? 0.5), M = new Mesher(), soffit = color('#2a2c30');
     const band = stripGeometry(out, y0, H, { closed: true, uScale }), uv = band.attributes.uv;
@@ -387,15 +440,24 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, logo, time = { value: 0 
       occupy(p.cx - p.lx / 2, p.cx + p.lx / 2, p.cz - p.lz / 2, p.cz + p.lz / 2);
     } else if (f.type === 'road' || f.type === 'motorway') {
       const motor = f.type === 'motorway', w = motor ? 26 : 10, p = place(f, w, len);
-      flat(p, '#4a4c50', 0.015);
+      flat(p, '#4a4c50', 0.1);
       const n = motor ? 3 : 1;
-      for (let i = 1; i <= n; i++) { const o = -w / 2 + i * w / (n + 1); flat({ cx: p.along === 'x' ? p.cx : p.cx + o, cz: p.along === 'x' ? p.cz + o : p.cz, lx: p.along === 'x' ? len : 0.25, lz: p.along === 'x' ? 0.25 : len }, null, 0.025, new THREE.MeshBasicMaterial({ color: '#e8e8e2' })); }
+      for (let i = 1; i <= n; i++) { const o = -w / 2 + i * w / (n + 1); flat({ cx: p.along === 'x' ? p.cx : p.cx + o, cz: p.along === 'x' ? p.cz + o : p.cz, lx: p.along === 'x' ? len : 0.25, lz: p.along === 'x' ? 0.25 : len }, null, 0.14, new THREE.MeshBasicMaterial({ color: '#e8e8e2' })); }
       if (motor) for (const o of [-w / 2 - 0.4, 0, w / 2 + 0.4]) { const a = along(p, 0, o); M.box(a[0], 0.45, a[1], p.along === 'x' ? len : 0.3, 0.9, p.along === 'x' ? 0.3 : len, color('#c4c6c8')); }
-      for (let s = -360; s <= 360; s += motor ? 45 : 30) for (const o of motor ? [0] : [-w / 2 - 1.5, w / 2 + 1.5]) { const [x, z] = along(p, s, o); lampAt(x, z, motor ? 11 : 8, motor ? '#ffc58a' : '#ffd9a6'); }
+      for (let s = -Math.min(360, len / 2 - 12); s <= Math.min(360, len / 2 - 12); s += motor ? 45 : 30) for (const o of motor ? [0] : [-w / 2 - 1.5, w / 2 + 1.5]) { const [x, z] = along(p, s, o); lampAt(x, z, motor ? 11 : 8, motor ? '#ffc58a' : '#ffd9a6'); }
       // Fari: bianchi in un senso, rossi nell'altro.
       const lanes = motor ? [[-9, 1], [-4.5, 1], [4.5, -1], [9, -1]] : [[-2.5, 1], [2.5, -1]], trail = [];
       for (const [o, dir] of lanes) for (let k = 0; k < len / 45; k++) { const [x, z] = along(p, 0, o); trail.push({ x, y: 0.9, z, c: dir > 0 ? '#fff4dc' : '#ff3b30', s: motor ? 1.5 : 1.3, m0: rand() * len, sp: dir * (motor ? 26 + rand() * 6 : 12 + rand() * 4) }); }
       group.add(glowPoints(trail, glow, time, { dir: p.along === 'x' ? [1, 0, 0] : [0, 0, 1], len }));
+      // Le strade non finiscono nel nulla: imbocco di galleria dentro una collina boscosa.
+      for (const end of f.tunnels || []) {
+        const sgn = end === 'start' ? -1 : 1, [tx, tz] = along(p, sgn * len / 2, 0), T = new Mesher(), conc = color('#b9b8b3'), dark = color('#0d0e10'), hill = color(snow ? '#d9e0e6' : '#4d6a3c');
+        const bx = (a, b, c2, sx, sy, sz, k) => p.along === 'x' ? T.box(tx + a, b, tz + c2, sx, sy, sz, k) : T.box(tx + c2, b, tz + a, sz, sy, sx, k);
+        bx(0, 4.5, 0, 3, 9, w + 6, conc); bx(-sgn * 1.6, 3.2, 0, 0.4, 6.2, w - 1, dark);
+        for (let k = 0; k < 6; k++) bx(sgn * (8 + k * 9), 6 - k * 0.4, 0, 18, 14 - k * 1.2, w + 30 + k * 10, hill.clone().multiplyScalar(0.92 + (k % 2) * 0.08));
+        group.add(T.mesh({ flatShading: true }));
+        for (let i = 0; i < 40; i++) { const a = sgn * (6 + rand() * 50), o = (rand() - 0.5) * (w + 40); const [x, z] = p.along === 'x' ? [tx + a, tz + o] : [tx + o, tz + a]; treeSpots.push([x, z, 8 + rand() * 8, 12 - Math.abs(a) * 0.15, true]); }
+      }
       occupy(p.cx - p.lx / 2, p.cx + p.lx / 2, p.cz - p.lz / 2, p.cz + p.lz / 2);
     } else if (f.type === 'river') {
       const p = place(f, f.w ?? 34, len);
@@ -403,15 +465,31 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, logo, time = { value: 0 
       occupy(p.cx - p.lx / 2, p.cx + p.lx / 2, p.cz - p.lz / 2, p.cz + p.lz / 2);
     } else if (f.type === 'runway') {
       const p = place(f, 30, len);
-      flat(p, '#9c9d9a', 0.012);
-      for (let s = -len / 2 + 10; s < len / 2; s += 30) flat({ cx: p.along === 'x' ? p.cx + s : p.cx, cz: p.along === 'x' ? p.cz : p.cz + s, lx: p.along === 'x' ? 14 : 0.8, lz: p.along === 'x' ? 0.8 : 14 }, null, 0.022, new THREE.MeshBasicMaterial({ color: '#f3f3f0' }));
-      const edge = []; for (let s = -500; s <= 500; s += 30) for (const o of [-16, 16]) { const [x, z] = along(p, s, o); edge.push({ x, y: 0.4, z, c: '#9cc3ff', s: 1.2 }); }
+      flat(p, '#9c9d9a', 0.1);
+      for (let s = -len / 2 + 10; s < len / 2; s += 30) flat({ cx: p.along === 'x' ? p.cx + s : p.cx, cz: p.along === 'x' ? p.cz : p.cz + s, lx: p.along === 'x' ? 14 : 0.8, lz: p.along === 'x' ? 0.8 : 14 }, null, 0.14, new THREE.MeshBasicMaterial({ color: '#f3f3f0' }));
+      // Testate come una vera pista di decollo: soglia a strisce, numero, zona di sicurezza con chevron gialli,
+      // poi nel prato una fila di luci di avvicinamento con le barre trasversali.
+      const white = new THREE.MeshBasicMaterial({ color: '#f3f3f0' }), yellow = new THREE.MeshBasicMaterial({ color: '#e8c33a' }), fixture = color('#5d6166'), appr = [];
+      const fr = (s0, o, ls, lo, m, y = 0.14) => { const [x, z] = along(p, s0, o); flat({ cx: x, cz: z, lx: p.along === 'x' ? ls : lo, lz: p.along === 'x' ? lo : ls }, null, y, m); };
+      for (const sgn of [-1, 1]) {
+        for (let k = -5; k <= 5; k++) if (k) fr(sgn * (len / 2 - 14), k * 2.4, 22, 1.3, white);
+        fr(sgn * (len / 2 - 34), -2.2, 9, 1, white); fr(sgn * (len / 2 - 34), 2.2, 9, 1, white); fr(sgn * (len / 2 - 40), 0, 1, 5, white);
+        fr(sgn * (len / 2 + 15), 0, 30, 30, new THREE.MeshLambertMaterial({ color: '#8f908c' }), 0.1);
+        for (let c = 0; c < 3; c++) for (const o of [-1, 1]) { const [x, z] = along(p, sgn * (len / 2 + 6 + c * 9), o * 6); const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 12).rotateX(-Math.PI / 2), yellow); m.position.set(x, 0.15, z); m.rotation.y = (p.along === 'x' ? 0 : Math.PI / 2) + o * sgn * 0.8; group.add(m); }
+        for (let k = 0; k < 6; k++) { const d = len / 2 + 34 + k * 12; for (const o of k % 3 === 2 ? [-9, -6, -3, 0, 3, 6, 9] : [0]) { const [x, z] = along(p, sgn * d, o); M.box(x, 0.6, z, 0.4, 1.2, 0.4, fixture); appr.push({ x, y: 1.3, z, c: '#fff6e0', s: 2.2 }); } }
+      }
+      group.add(glowPoints(appr, glow, time));
+      const edge = []; for (let s = -len / 2 + 10; s <= len / 2 - 10; s += 30) for (const o of [-16, 16]) { const [x, z] = along(p, s, o); edge.push({ x, y: 0.4, z, c: '#9cc3ff', s: 1.2 }); }
       group.add(glowPoints(edge, glow, time));
       occupy(p.cx - p.lx / 2, p.cx + p.lx / 2, p.cz - p.lz / 2, p.cz + p.lz / 2);
     } else if (f.type === 'parking') {
       const p = place(f, f.w ?? 40, f.len ?? 60);
-      flat(p, snow ? '#9ea4aa' : '#6f7175', 0.012);
-      for (let i = 0; i < (f.cars ?? 40); i++) cars.push([p.cx + (rand() - 0.5) * (p.lx - 4), p.cz + (rand() - 0.5) * (p.lz - 4), p.along]);
+      flat(p, snow ? '#9ea4aa' : '#6f7175', 0.07);
+      // Auto in file ordinate, una per stallo, senza sovrapposizioni.
+      { const L = p.along === 'x' ? p.lx : p.lz, Wd = p.along === 'x' ? p.lz : p.lx, slots = [];
+        for (let r = -Wd / 2 + 3.5; r <= Wd / 2 - 3.5; r += Wd < 14 ? 99 : 7.5) for (let u = -L / 2 + 3; u <= L / 2 - 3; u += 3) slots.push([u, Wd < 14 ? 0 : r]);
+        const want = Math.min(f.cars ?? 40, Math.floor(slots.length * 0.6));
+        for (let i = 0; i < want && slots.length; i++) { const [u, r] = slots.splice(Math.floor(rand() * slots.length), 1)[0]; cars.push(p.along === 'x' ? [p.cx + u, p.cz + r, 'z'] : [p.cx + r, p.cz + u, 'x']); } }
       for (let a = -p.lx / 2 + 8; a < p.lx / 2; a += 22) for (let b = -p.lz / 2 + 8; b < p.lz / 2; b += 22) { M.box(p.cx + a, 5, p.cz + b, 0.25, 10, 0.25, color('#8b8e93')); lampAt(p.cx + a, p.cz + b, 10, '#f4f1ff'); }
       occupy(p.cx - p.lx / 2, p.cx + p.lx / 2, p.cz - p.lz / 2, p.cz + p.lz / 2);
     } else if (f.type === 'pitch' || f.type === 'stadium') {
@@ -421,7 +499,7 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, logo, time = { value: 0 
       const p = place(f, pw + ring * 2, plen + ring * 2), xLong = p.lx > p.lz, pl = { ...p, lx: xLong ? 110 : 74, lz: xLong ? 74 : 110 };
       const pitchMat = nightMat(new THREE.MeshLambertMaterial({ map: pitchTexture(), emissive: color('#ffffff'), emissiveIntensity: 0 }), f.type === 'stadium' ? 0.55 : 0.35);
       pitchMat.emissiveMap = pitchMat.map;
-      const pm = new THREE.Mesh(new THREE.PlaneGeometry(110, 74), pitchMat); pm.rotation.set(-Math.PI / 2, 0, xLong ? 0 : Math.PI / 2); pm.position.set(p.cx, 0.014, p.cz); group.add(pm);
+      const pm = new THREE.Mesh(new THREE.PlaneGeometry(110, 74), pitchMat); pm.rotation.set(-Math.PI / 2, 0, xLong ? 0 : Math.PI / 2); pm.position.set(p.cx, 0.06, p.cz); group.add(pm);
       if (f.type === 'stadium') {
         const h = f.h ?? H, k = color(f.color || E.wall || '#9da1a7'), green = color('#7d8a5c'), hx = p.lx / 2, hz2 = p.lz / 2;
         for (const [bx, bz, sx, sz] of [[0, -hz2 + ring / 2, p.lx, ring], [0, hz2 - ring / 2, p.lx, ring], [-hx + ring / 2, 0, ring, p.lz - ring * 2], [hx - ring / 2, 0, ring, p.lz - ring * 2]]) {
@@ -445,7 +523,7 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, logo, time = { value: 0 
       occupy(p.cx - lx / 2 - 4, p.cx + lx / 2 + 4, p.cz - lz / 2 - 4, p.cz + lz / 2 + 4);
     } else if (f.type === 'pool') {
       const p = place(f, 26, 50);
-      flat({ ...p, lx: p.lx + 8, lz: p.lz + 8 }, '#d9d4c8', 0.012);
+      flat({ ...p, lx: p.lx + 8, lz: p.lz + 8 }, '#d9d4c8', 0.05);
       flat(p, null, 0.02, nightMat(new THREE.MeshPhongMaterial({ color: '#3fb2d6', shininess: 90, emissive: color('#2a9fd0'), emissiveIntensity: 0 }), 0.5));
       occupy(p.cx - p.lx / 2 - 4, p.cx + p.lx / 2 + 4, p.cz - p.lz / 2 - 4, p.cz + p.lz / 2 + 4);
     } else if (f.type === 'hall' || f.type === 'rink2' || f.type === 'garage') {
@@ -466,6 +544,12 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, logo, time = { value: 0 
       const tt = towerTextures(A.team), tm = nightMat(new THREE.MeshLambertMaterial({ map: tt.day, emissiveMap: tt.night, emissive: color('#ffffff'), emissiveIntensity: 0 }), 1);
       const tower = new THREE.Mesh(geo, tm); tower.position.set(p.cx, h / 2, p.cz); group.add(tower);
       occupy(p.cx - p.lx / 2 - 4, p.cx + p.lx / 2 + 4, p.cz - p.lz / 2 - 4, p.cz + p.lz / 2 + 4);
+    } else if (f.type === 'silos') {
+      // Impianto di betonaggio: silos cilindrici e un nastro inclinato (accanto al Gottardo).
+      const p = place(f, 30, 30), g = color('#c9cbcc');
+      for (let i = 0; i < 4; i++) { const m = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, 22 + i * 3, 16), new THREE.MeshLambertMaterial({ color: g })); m.position.set(p.cx - 8 + i * 5.5, 11 + i * 1.5, p.cz); group.add(m); }
+      M.box(p.cx + 4, 30, p.cz, 4, 60, 4, color('#9ea3a8')); M.beam([p.cx + 14, 0.5, p.cz + 18], [p.cx + 2, 14, p.cz + 2], 1.2, color('#7a7f85'));
+      lamps.push({ x: p.cx + 4, y: 60, z: p.cz, c: '#ff4a3a', s: 2 });
     } else if (f.type === 'boulders') {
       // Volumi bianchi spigolosi lungo un fianco (Bienne: scale esterne).
       const p = place(f, 10, f.len ?? 160), white = color('#eef0f1');
@@ -495,6 +579,21 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, logo, time = { value: 0 
         occupy(x - w / 2, x + w / 2, z - d / 2, z + d / 2);
       }
     }
+  }
+  // Prati: riquadri di verde diversi, con qualche campo falciato e i bordi più scuri, invece di un piano unico.
+  if (E.meadows) {
+    const F = new Mesher(), pal = (snow ? ['#e4e9ee', '#dde3e9', '#eef1f4'] : ['#6f8f4f', '#7a9a56', '#86a45c', '#68874a', '#91ab63', '#7c9150', '#a3a66a']).map(color);
+    const R = E.meadows.r ?? 520, cell = E.meadows.cell ?? 46;
+    for (let x = -R; x < R; x += cell) for (let z = -R; z < R; z += cell) {
+      const w = cell - 2, d = cell - 2, cx = x + cell / 2, cz = z + cell / 2;
+      if (occupied.some(q => cx + w / 2 > q[0] && cx - w / 2 < q[1] && cz + d / 2 > q[2] && cz - d / 2 < q[3])) continue;
+      if (Math.hypot(cx, cz) > R * (0.65 + rand() * 0.35)) continue;
+      const k = pick3(rand, pal), y = 0.04, q = (a, b, c2, dd, col, yy) => F.quad([a, yy, b], [c2, yy, b], [c2, yy, dd], [a, yy, dd], col);
+      q(cx - w / 2, cz - d / 2, cx + w / 2, cz + d / 2, k, y);
+      if (!snow && rand() < 0.35) for (let s2 = -w / 2 + 1; s2 < w / 2 - 1.5; s2 += 3.2) q(cx + s2, cz - d / 2 + 1, cx + s2 + 1.4, cz + d / 2 - 1, k.clone().multiplyScalar(1.1), y + 0.03);
+      if (rand() < 0.18) for (let i = 0; i < 6; i++) treeSpots.push([cx - w / 2 + rand() * w, cz + d / 2, 7 + rand() * 6, 0, rand() < 0.5]);
+    }
+    group.add(F.mesh());
   }
   if (!M.empty) group.add(M.mesh());
   if (cars.length) {
@@ -546,8 +645,8 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, logo, time = { value: 0 
     group.add(glowPoints(lamps, glow, time));
     const poolMat = nightMat(new THREE.MeshBasicMaterial({ map: radialTexture(), color: '#ffcf96', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }), 0.42, 'opacity');
     const inst = new THREE.InstancedMesh(new THREE.PlaneGeometry(16, 16).rotateX(-Math.PI / 2), poolMat, pools.length), m = new THREE.Matrix4(), q = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1);
-    pools.forEach(([x, z], i) => { m.compose(new THREE.Vector3(x, 0.08, z), q, one); inst.setMatrixAt(i, m); });
-    inst.frustumCulled = false; group.add(inst);
+    pools.forEach(([x, z], i) => { m.compose(new THREE.Vector3(x, 0.2, z), q, one); inst.setMatrixAt(i, m); });
+    inst.frustumCulled = false; inst.renderOrder = 2; group.add(inst);
   }
 
   return { group, roof, facade, height: top, footprint: fp, night, sky: { uniforms: skyU } };

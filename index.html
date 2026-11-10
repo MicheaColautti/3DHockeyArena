@@ -106,6 +106,7 @@ button,select{font:inherit;color:inherit}
 .scorer .num{display:grid;place-items:center;width:44px;height:44px;margin:0 auto 6px;border-radius:50%;background:var(--team);color:var(--tink);font-weight:900;font-size:17px}
 .scorer b{display:block;font-size:13.5px}
 .scorer small{color:var(--muted);font-size:11px}
+.scorer small img{width:16px;height:16px;object-fit:contain;vertical-align:-3px;margin-right:4px}
 .scorer dl{display:grid;grid-template-columns:repeat(4,1fr);margin:10px 0 0;font-variant-numeric:tabular-nums}
 .scorer dt{font-size:10px;color:var(--muted);font-weight:750}
 .scorer dd{margin:0;font-size:15px;font-weight:850}
@@ -195,11 +196,11 @@ button,select{font:inherit;color:inherit}
 </div>
 
 <script type="module">
-import { ArenaView } from './src/engine.js?v=24';
-import { ARENAS, ARENA_IDS } from './src/arenas.js?v=24';
-import { TEAMS, LOGO_DIR } from './src/teams.js?v=24';
-import { POSITIONS, POSITION_SHORT } from './src/lineups.js?v=24';
-import { makeStats } from './src/stats.js?v=24';
+import { ArenaView } from './src/engine.js?v=37';
+import { ARENAS, ARENA_IDS } from './src/arenas.js?v=37';
+import { TEAMS, LOGO_DIR } from './src/teams.js?v=37';
+import { POSITIONS, POSITION_SHORT } from './src/lineups.js?v=37';
+import { makeStats } from './src/stats.js?v=37';
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);

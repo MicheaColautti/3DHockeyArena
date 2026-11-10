@@ -7,14 +7,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { TEAMS } from './teams.js?v=24';
-import { ARENAS } from './arenas.js?v=24';
-import { POSITIONS, placeholderLineup } from './lineups.js?v=24';
-import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=24';
-import { iceTexture, boardsTexture, ledTexture, suitesTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=24';
-import { lambert, disposeObject, makePlayer } from './players.js?v=24';
-import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=24';
-import { buildExterior } from './exterior.js?v=24';
+import { TEAMS } from './teams.js?v=37';
+import { ARENAS } from './arenas.js?v=37';
+import { POSITIONS, placeholderLineup } from './lineups.js?v=37';
+import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=37';
+import { iceTexture, boardsTexture, ledTexture, suitesTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=37';
+import { lambert, disposeObject, makePlayer } from './players.js?v=37';
+import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=37';
+import { buildExterior } from './exterior.js?v=37';
 
 export { RINK };
 const NEUTRALS = ['#2b2f36', '#3c4048', '#56606b', '#e6e6e6', '#1d2a44', '#5b4636', '#8a8f99', '#1a1a1a', '#6f7f8f', '#a33a3a', '#3f5f3f'];
@@ -26,7 +26,7 @@ export const LINEUP_SLOTS = { LW: [-8.6, -6.4], C: [-6.4, 0], RW: [-8.6, 6.4], L
 const BENCH = { home: [-7.5, 16.6], away: [7.5, 16.6] };
 const SKY = '#bfd5e6';
 // Intro: secondi di giorno, di tramonto e di notte prima di entrare nell'arena.
-export const INTRO = { day: 9, dusk: 7, night: 10 };
+export const INTRO = { day: 2.5, dusk: 5, night: 14 };
 const SKY_HORIZON = ['#dfe9f0', '#f0a06a', '#16213a'], SKY_TOP = ['#8fb4d6', '#41558a', '#03060d'];
 const MOON = color('#6d84b8'), DUSK = color('#ffb27a');
 const mix3 = (list, n) => { const k = list.map(color); return n < 0.5 ? k[0].lerp(k[1], n * 2) : k[1].lerp(k[2], (n - 0.5) * 2); };
@@ -40,7 +40,7 @@ export class ArenaView {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(48, 1, 0.3, 4000);
     this.controls = new OrbitControls(this.camera, canvasEl);
-    Object.assign(this.controls, { enableDamping: true, dampingFactor: 0.08, maxPolarAngle: Math.PI * 0.49, minDistance: 6, maxDistance: 220, autoRotateSpeed: 0.35, enabled: false });
+    Object.assign(this.controls, { enableDamping: true, dampingFactor: 0.08, maxPolarAngle: Math.PI * 0.49, minDistance: 6, maxDistance: 70, autoRotateSpeed: 0.35, enabled: false });
     this.target = new THREE.Vector3();
     this.time = { value: 0 };
     this.night = { value: 0 }; this.glow = { value: 0 };
@@ -136,14 +136,17 @@ export class ArenaView {
     if (this.cube) this.cube.visible = mode !== 'lineup';
     if (this.outside) this.outside.visible = mode === 'intro';
     this.scene.background = mode === 'intro' ? color(SKY) : color(this.A.style.wall).multiplyScalar(0.55);
-    this.scene.fog = mode === 'intro' ? new THREE.Fog(SKY, 700, 2600) : null;
+    // Nebbia stretta: il paesaggio sfuma piano nel cielo (e di notte nel buio) invece di finire con uno stacco.
+    this.scene.fog = mode === 'intro' ? new THREE.Fog(SKY, 200, 760) : null;
     if (mode === 'intro') this.setNight(0); else { this.night.value = 0; this.setLightLevel(1); }
+    // In volo sopra l'esterno serve più precisione di profondità: piano vicino più lontano, niente sfarfallio.
+    this.camera.near = mode === 'intro' ? 2 : 0.3;
     this.arrange(mode === 'lineup' ? 'lineup' : 'game', instant || prev === 'intro');
     this.camera.fov = 48; this.camera.clearViewOffset();
     if (mode === 'lineup') { const c = this.lineupCamera(); this.flyTo(c.pos, c.target, instant ? 0 : 1300, () => this.applyLineupFov()); if (instant) this.applyLineupFov(); }
     else if (mode === 'tour') { this.tour.nextLine = performance.now() + this.tour.lineEvery; if (!instant && prev !== 'intro') { const p = this.tourPose(this.tour.angle); this.flyTo(p.pos, p.target, 1300); } }
     else if (mode === 'intro') { this.intro.start = performance.now(); this.intro.entering = false; this.tween = null; }
-    else if (mode === 'explore') { const v = this.views().tribuna; this.flyTo(v.pos, v.target, instant ? 0 : 1100); }
+    else if (mode === 'explore') { this.controls.maxDistance = Math.max(this.extent.EX, this.extent.EZ); const v = this.views().tribuna; this.flyTo(v.pos, v.target, instant ? 0 : 1100); }
     this.camera.updateProjectionMatrix();
     this.emit('mode', mode);
   }
@@ -152,6 +155,7 @@ export class ArenaView {
   enterArena() {
     if (this.mode !== 'intro' || this.intro.entering) return;
     this.intro.entering = true;
+    this.camera.near = 0.5; this.camera.updateProjectionMatrix();
     const top = this.outsideTop ?? this.roofY;
     const p = this.tourPose(this.tour.angle = Math.PI / 2);
     this.flyPath([this.camera.position.clone(), new THREE.Vector3(0, top + 45, 30), new THREE.Vector3(0, top + 6, 8), p.pos], [this.target.clone(), new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 0), p.target], 4200, () => this.setMode('tour'));
@@ -162,9 +166,16 @@ export class ArenaView {
     const eye = (P, f) => Math.min(Y - 2.5, heightAt(P, P.depth * f) + 2.4);
     return {
       tribuna: { pos: [12, eye(profiles.south, 0.85) + 2.5, zs + profiles.south.depth * 0.85], target: [-6, 0.5, 0] },
-      alto: { pos: [0.01, Math.max(92, this.extent.EX * 1.4), 22], target: [0, 0, 0] },
-      diorama: { pos: [this.extent.EX * 1.1, this.extent.EX * 0.85, this.extent.EZ * 1.9], target: [0, 2, 0] },
+      alto: { pos: [0.01, Y - 2, this.extent.EZs - 3], target: [0, 0, -3] },
+      diorama: { pos: [this.extent.EX - 3, Y - 3, this.extent.EZs - 3], target: [0, 1, 0] },
     };
+  }
+
+  keepInside(v) {
+    const E = this.extent, m = 1.5;
+    v.x = THREE.MathUtils.clamp(v.x, -E.EX + m, E.EX - m); v.z = THREE.MathUtils.clamp(v.z, -E.EZn + m, E.EZs - m);
+    v.y = THREE.MathUtils.clamp(v.y, 1.5, this.roofY + (this.archRise || 0) * 0.5 - 1.5);
+    return v;
   }
 
   lineupCamera() {
@@ -293,7 +304,8 @@ export class ArenaView {
     sections.forEach((S, si) => {
       const P = S.profile;
       roofBase = Math.max(roofBase, P.top);
-      const cuts = zoneCuts(A, S), upperFrom = st.upperSeats ? Math.floor(P.rows.length * st.upperSeats.from) : Infinity, upperC = st.upperSeats && color(st.upperSeats.color);
+      // Curva in piedi di casa: niente scale tra i settori, solo due passaggi vicino al centro (A.home.aisles).
+      const curveSec = this.isCurve(S), vom = curveSec && S.kind === 'straight' ? this.vomitories(S) : null, cuts = [...zoneCuts(A, S), ...(vom ? vom.cuts : [])], upperFrom = st.upperSeats ? Math.floor(P.rows.length * st.upperSeats.from) : Infinity, upperC = st.upperSeats && color(st.upperSeats.color);
       P.rows.forEach((R, ri) => {
         const ts = sectionTs(S, 0, 1, 7, cuts), at = d => ts.map(t => { const q = sectionPoint(S, t, d); return [q.x, q.z]; });
         const inner = at(R.d), outer = at(R.d + R.depth);
@@ -307,7 +319,17 @@ export class ArenaView {
           else if (st.seatPattern === 'random') seat = pick(rand, seats);
           else seat = seats[0];
           const a = inner[i], b = inner[i + 1], c = outer[i + 1], d = outer[i];
-          const segLen = Math.hypot(b[0] - a[0], b[1] - a[1]), hasAisle = S.kind === 'straight' ? segLen > 3 : i % 3 === 2 && segLen > 1.5;
+          // Vomitorio: un'apertura nella gradinata con pavimento scuro e pareti laterali, niente gradini.
+          if (vom && R.standing && vom.at((ts[i] + ts[i + 1]) / 2)) {
+            const fy = P.rows[vom.r0].below;
+            if (ri >= vom.r0 && ri <= vom.r1) {
+              M.quad([a[0], fy, a[1]], [b[0], fy, b[1]], [c[0], fy, c[1]], [d[0], fy, d[1]], color('#1b1c1f'));
+              for (const [p1, p2] of [[a, d], [b, c]]) M.quad([p1[0], fy, p1[1]], [p2[0], fy, p2[1]], [p2[0], R.h, p2[1]], [p1[0], R.h, p1[1]], conc);
+              continue;
+            }
+            if (ri === vom.r1 + 1) { M.quad([a[0], fy, a[1]], [b[0], fy, b[1]], [b[0], R.h, b[1]], [a[0], R.h, a[1]], color('#121315')); M.quad([a[0], R.h, a[1]], [b[0], R.h, b[1]], [c[0], R.h, c[1]], [d[0], R.h, d[1]], seat); continue; }
+          }
+          const segLen = Math.hypot(b[0] - a[0], b[1] - a[1]), hasAisle = curveSec && R.standing ? false : S.kind === 'straight' ? segLen > 3 : i % 3 === 2 && segLen > 1.5;
           const u = hasAisle ? 1 - Math.min(0.45, 1.1 / Math.max(segLen, 0.1)) : 1;
           const a2 = lerp2(a, b, u), d2 = lerp2(d, c, u);
           M.quad([a[0], R.h, a[1]], [a2[0], R.h, a2[1]], [d2[0], R.h, d2[1]], [d[0], R.h, d[1]], seat);
@@ -356,6 +378,14 @@ export class ArenaView {
 
   // Soffitto interno. Tipi: truss (capriate in acciaio), flat (travi piene), botta (travi diagonali), slats (travi scure e doghe chiare),
   // wood-truss (capriate in legno), vault (volta ribassata con archi), wood-arch / wood-gothic (archi in legno), wood-cross (volte incrociate).
+  isCurve(S) { const H = this.A.home; return !!H && (S.kind === 'straight' ? S.key === H.side && H.from == null && H.to == null : S.wrap && S.end === H.side); }
+  // Due vomitori nella curva di casa, a sinistra e a destra del centro (t), larghi circa 2,8 m, alti 4 file.
+  vomitories(S) {
+    const off = Math.min(0.3, 5 / S.len), at = this.A.home?.vomitories ?? [0.5 - off, 0.5 + off], hw = 1.4 / S.len, rows = S.profile.rows.filter(R => R.standing).length;
+    const r0 = Math.max(1, Math.floor(rows * 0.3)), r1 = Math.min(rows - 2, r0 + 3);
+    return { cuts: at.flatMap(c => [c - hw, c + hw]), r0, r1, at: t => at.some(c => Math.abs(t - c) < hw) };
+  }
+
   buildRoof() {
     const A = this.A, R = A.roof, { EX, EZn, EZs } = this.extent, Y = this.roofY, M = new Mesher(), roofC = color(R.color);
     const steel = R.steel ? color(R.steel) : roofC.clone().lerp(color(lum(R.color) > 0.5 ? '#8e959e' : '#5b616a'), 0.5), lights = new Mesher(), lightC = color('#ffffff');
@@ -561,7 +591,8 @@ export class ArenaView {
       P.rows.forEach((R, ri) => {
         const spacing = (R.standing ? 0.56 : 0.62) / density;
         for (const p of samplePolyline(sectionLine(S, R.d + R.depth * 0.55), spacing, rand, 0.14)) {
-          if (segLen && (p.t * S.len) % segLen > segLen - 1.15) continue; // scale tra i settori
+          if (this.isCurve(S) && R.standing) { const v = S.kind === 'straight' && this.vomitories(S); if (v && ri >= v.r0 && ri <= v.r1 && v.at(p.t)) continue; }
+          else if (segLen && (p.t * S.len) % segLen > segLen - 1.15) continue; // scale tra i settori
           const zone = zoneAt(A, S, p.t, R);
           const occ = zone === 'curve' ? 0.97 : zone === 'guest' ? 0.92 : zone === 'standing' ? 0.93 : A.occupancy ?? 0.88;
           if (rand() > occ) continue;
@@ -720,6 +751,10 @@ export class ArenaView {
     // Tetto interno nascosto quando la telecamera è sopra o fuori; tetto esterno nascosto mentre si entra.
     const c = this.camera.position, E = this.extent, inside = Math.abs(c.x) < E.EX && c.z > -E.EZn && c.z < E.EZs;
     if (this.ceiling) this.ceiling.visible = inside && c.y < this.roofY + (this.archRise || 0) - 0.3;
+    // Nell'intro si vede solo l'esterno: l'interno (più alto dell'involucro in alcune arene) ricompare quando si entra.
+    const outsideOnly = this.mode === 'intro' && !this.intro.entering;
+    if (this.root) for (const ch of this.root.children) if (ch !== this.outside && !ch.isLight) ch.visible = !outsideOnly;
+    if (this.awayLayer) this.awayLayer.visible = !outsideOnly;
     if (this.outsideRoof) this.outsideRoof.visible = !(this.intro.entering && c.y < (this.outsideTop ?? 0) + 4);
     if (this.mode === 'intro' && this.intro.entering && this.tween && this.nightLevel < 1) {
       const u = ease(Math.min(1, (now - this.tween.start) / this.tween.ms));
@@ -767,6 +802,10 @@ export class ArenaView {
       const p = this.tourPose(this.tour.angle); this.camera.position.copy(p.pos); this.target.copy(p.target); this.camera.lookAt(this.target);
     } else if (this.mode === 'explore') {
       this.controls.update();
+      // La telecamera resta dentro l'arena: niente zoom oltre le pareti o sopra il soffitto.
+      const c = this.camera.position, E = this.extent, before = c.clone();
+      this.keepInside(c);
+      if (!c.equals(before)) this.camera.lookAt(this.controls.target);
     }
   }
 
