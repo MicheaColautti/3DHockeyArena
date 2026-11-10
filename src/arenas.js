@@ -376,27 +376,51 @@ export const ARENAS = {
   },
   ZSC: {
     team: 'ZSC', name: 'Swiss Life Arena', city: 'Zurigo', capacity: 12000, opened: 2022,
-    note: 'Pianta a spigoli netti e facciata a pieghe come un sipario, con il bordo ondulato e gli oblò; di sera tratti rossi, bianchi e blu. Dentro, catino ripidissimo, cubo 12 × 8 m e gagliardetti.',
-    facts: ['Aperta nel 2022', 'Facciata a pieghe con oblò', 'Maxi cubo 12 × 8 m', 'Ospiti nell\'angolo destro della curva opposta'],
+    note: 'Pianta a spigoli netti e facciata a pieghe come un sipario, con il bordo ondulato e gli oblò; di sera tratti rossi, bianchi e blu. Dentro, tribune ripide tutte a sedere, cubo 12 × 8 m e, dietro una porta, il muro di cemento con le nicchie colorate.',
+    facts: ['Aperta nel 2022', 'Facciata a pieghe con oblò', 'Muro con le nicchie blu, bianche e rosse', 'Ospiti in alto, accanto al muro delle nicchie'],
     gaps: { side: 2.4, bench: 4.4, end: 3.2 },
     stands: {
       north: { base: 1.3, tiers: [seated(16, 0.48, 0.8), upper(14, 0.56, 0.78, 'led', { depth: 2, rise: 3 })] },
       south: { base: 1.3, tiers: [seated(16, 0.48, 0.8), upper(14, 0.56, 0.78, 'led', { depth: 2, rise: 3 })] },
-      west: { base: 2.4, tiers: [standing(32, 0.46, 0.52)] },
-      east: { base: 2.2, tiers: [seated(14, 0.48, 0.8), upper(10, 0.56, 0.78, 'led', { depth: 2, rise: 3 })] },
+      // Niente curva in piedi: la testata di casa è a sedere come il resto (con qualche bandiera).
+      west: { base: 1.3, tiers: [seated(16, 0.48, 0.8), upper(14, 0.56, 0.78, 'led', { depth: 2, rise: 3 })] },
+      // Testata opposta: un solo anello, sopra il muro di cemento con le nicchie colorate (extras.nicheWall).
+      // il primo anello curva negli angoli; sopra, l'anello superiore dei lati gira l'angolo a scalare (upperArc).
+      east: { base: 1.3, tiers: [seated(18, 0.48, 0.8)] },
     },
-    corners: true,
-    home: { side: 'west' },
-    guest: { side: 'east', from: 0.72, to: 1, tier: 0, corner: 'south' },
+    // Angoli est: il primo anello curva (profilo della testata); l'anello superiore dei lati gira l'angolo leggermente
+    // arcuato e prosegue lungo la testata a scalare: la prima fila fa il giro completo, le altre si fermano sempre prima.
+    corners: { west: 'side', east: 'end' },
+    upperArc: { end: 'east', wall: 17.9, stepDeg: 6, second: 0.45 },
+    home: { side: 'west', seatedCurve: true },
+    curveFlags: 0.012,
+    // Ospiti in alto a destra guardando le nicchie: anello superiore del lato sud, verso la testata est.
+    guest: { side: 'south', from: 0.82, to: 1, tier: 1 },
     led: { boards: true, rim: true },
     roof: { type: 'truss', clear: 7, color: '#24272c', steel: '#4a4f57' },
     cube: { w: 12, h: 8 },
-    style: { concrete: '#6f737a', riser: '#5a5e65', wall: '#2c2f35', floor: '#2a2c30', seats: ['#2a2d33', '#33363d'], seatPattern: 'blocks' },
+    style: { concrete: '#6f737a', riser: '#5a5e65', wall: '#77787a', floor: '#2a2c30', seats: ['#2a2d33', '#33363d'], seatPattern: 'blocks' },
     light: { tint: '#ffffff', ambient: 1.1, key: 1.1 },
-    extras: { pennants: ['#ffffff', '#1d4fd8', '#e8202a', '#9ec0ff'] },
-    exterior: { shape: 'rect', wall: '#d9dbdc', facade: 'pleats', nightColors: ['#e8202a', '#ffffff', '#1d4fd8'], uScale: 72, nightPower: 1.3, roof: 'flat', roofMat: 'dark-solar', ground: 'urban', trees: 60, conifers: false,
-      features: [{ type: 'walkers', side: 'east', dist: 2, w: 10, len: 80, n: 30 }, { type: 'walkers', side: 'south', dist: 2, w: 14, len: 100, n: 50 }, { type: 'hall', side: 'north', dist: 0, w: 26, len: 70, h: 12, color: '#d9dbdc', top: '#a89a84', offset: -20 }, { type: 'rail', side: 'south', dist: 18, tracks: 10 }, { type: 'gardens', side: 'west', dist: 12, n: 80, depth: 120 },
-        { type: 'road', side: 'north', dist: 34 }, { type: 'city', side: 'north', dist: 60, n: 40, height: 28 }, { type: 'city', side: 'east', dist: 30, n: 30, height: 26 }] },
+    extras: { nicheWall: { side: 'east', back: 3.5, color: '#77787a', n: 8, w: 4.5, h: 8, depth: 0.8, colors: ['#1d4fd8', '#f4f4f2', '#e8202a'] } },
+    // Esterno dalle foto, dal basso verso l'alto: piano terra vetrato arretrato dietro una fila di colonne, sopra il
+    // "sipario" di pieghe chiare con il bordo ad archi. Livelli: sala dell'arena (la più alta, rossa di sera) con sopra il
+    // livello arretrato a fasce blu, bianca e rossa con l'insegna; a ovest la sala d'allenamento più bassa (testata blu);
+    // a est il lungo corpo degli oblò (con le pieghe blu alle estremità) che sporge dalla sala, poi la terrazza sul tetto. Ferrovia a nord, città e torri a est,
+    // orti urbani a sud e a ovest, la collina con le case in fondo.
+    exterior: { shape: 'rect', wall: '#e4e6e6', signColor: '#2f343a', roofMat: 'dark-solar', ground: 'urban', trees: 70, conifers: false, haloColor: '#ffd9c0',
+      curtain: { base: 5, amp: 2.8, arch: 9, pitch: 2.4, depth: 0.75, recess: 3, nightPower: 1.3,
+        main: { h: 34, night: '#e8202a' }, top: { h: 7, inset: 6, from: 0.6 },
+        west: { len: 42, h: 25, night: '#ffffff', endNight: '#1d4fd8' },
+        east: { len: 44, h: 23, band: 10, rows: 4, ends: 6, night: '#1d4fd8' }, terrace: { len: 30, h: 12, inset: 12, insetS: 6, night: '#1d4fd8' },
+        canopy: { h: 11, depth: 8, from: 64, to: 16 } },
+      features: [{ type: 'walkers', side: 'south', dist: 2, w: 14, len: 160, n: 60 }, { type: 'walkers', side: 'east', dist: 6, w: 12, len: 70, n: 25 },
+        { type: 'road', side: 'north', dist: 6, len: 1400 }, { type: 'rail', side: 'north', dist: 22, tracks: 12, trains: 9, catenary: true },
+        { type: 'road', side: 'east', dist: 30, len: 1400 }, { type: 'road', side: 'south', dist: 16, len: 1400 },
+        { type: 'tower', side: 'east', dist: 120, offset: 150, w: 24, d: 22, h: 82, lean: 0, tint: '#3b4148' }, { type: 'tower', side: 'east', dist: 160, offset: 120, w: 24, d: 22, h: 74, lean: 0, tint: '#353b42' },
+        { type: 'tower', side: 'east', dist: 260, offset: 40, w: 30, d: 30, h: 126, lean: 0, tint: '#5f7a7a' }, { type: 'tower', side: 'east', dist: 200, offset: -170, w: 26, d: 26, h: 96, lean: 0, tint: '#8a8f94' },
+        { type: 'city', side: 'east', dist: 40, depth: 260, grid: 30, height: 26, spread: 260 }, { type: 'city', side: 'north', dist: 110, depth: 220, grid: 32, height: 20, spread: 320 },
+        { type: 'gardens', side: 'south', dist: 30, depth: 150, len: 360, plots: true }, { type: 'gardens', side: 'west', dist: 14, depth: 120, len: 200, plots: true, offset: 20 },
+        { type: 'slope', side: 'south', dist: 230, angle: 0.22, depth: 300, trees: 260, houses: 60, color: '#5f7a48', conifers: false }] },
   },
   EVZ: {
     team: 'EVZ', name: 'OYM hall', formerName: 'Bossard Arena', city: 'Zugo', capacity: 7200, opened: 2010,

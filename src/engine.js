@@ -7,14 +7,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { TEAMS } from './teams.js?v=93';
-import { ARENAS } from './arenas.js?v=93';
-import { POSITIONS, placeholderLineup } from './lineups.js?v=93';
-import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=93';
-import { iceTexture, boardsTexture, ledTexture, suitesTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=93';
-import { lambert, disposeObject, makePlayer } from './players.js?v=93';
-import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=93';
-import { buildExterior, octaRoof } from './exterior.js?v=93';
+import { TEAMS } from './teams.js?v=109';
+import { ARENAS } from './arenas.js?v=109';
+import { POSITIONS, placeholderLineup } from './lineups.js?v=109';
+import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=109';
+import { iceTexture, boardsTexture, ledTexture, suitesTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=109';
+import { lambert, disposeObject, makePlayer } from './players.js?v=109';
+import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=109';
+import { buildExterior, octaRoof } from './exterior.js?v=109';
 
 export { RINK };
 const NEUTRALS = ['#2b2f36', '#3c4048', '#56606b', '#e6e6e6', '#1d2a44', '#5b4636', '#8a8f99', '#1a1a1a', '#6f7f8f', '#a33a3a', '#3f5f3f'];
@@ -368,7 +368,10 @@ export class ArenaView {
           const front = R.first && R.tier > 0 ? fasciaC : riser;
           M.quad([a[0], R.below, a[1]], [b[0], R.below, b[1]], [b[0], R.h, b[1]], [a[0], R.h, a[1]], ri === 0 ? conc : front);
         }
-        if (S.kind === 'straight') for (const k of [0, inner.length - 1]) M.quad([inner[k][0], 0, inner[k][1]], [outer[k][0], 0, outer[k][1]], [outer[k][0], R.h, outer[k][1]], [inner[k][0], R.h, inner[k][1]], conc);
+        // Sezioni appese (anello alto che gira l'angolo, Zurigo): facce di testa solo dalla fila sotto; il lato lungo che
+        // prosegue nell'arco appeso (hangEnd) non ha la faccia piena sotto l'anello alto da quella parte.
+        if (S.kind === 'arc' && S.capStart) M.quad([inner[0][0], R.below, inner[0][1]], [outer[0][0], R.below, outer[0][1]], [outer[0][0], R.h, outer[0][1]], [inner[0][0], R.h, inner[0][1]], conc);
+        if (S.kind === 'straight') for (const k of [0, inner.length - 1]) { if (S.hang && S.capEnd === false) continue; const y0 = S.hang || (R.tier > 0 && S.hangEnd === (k ? 1 : 0)) ? R.below : 0; M.quad([inner[k][0], y0, inner[k][1]], [outer[k][0], y0, outer[k][1]], [outer[k][0], R.h, outer[k][1]], [inner[k][0], R.h, inner[k][1]], conc); }
         // Cuneo: le due facce verticali del prisma lungo i cateti, a gradini dal pavimento fino alla fila.
         if (S.kind === 'wedge') for (const k of [0, inner.length - 1]) M.quad([inner[k][0], 0, inner[k][1]], [outer[k][0], 0, outer[k][1]], [outer[k][0], R.h, outer[k][1]], [inner[k][0], R.h, inner[k][1]], wedgeFace);
         if (R.standing && ri % 4 === 3) { const l = sectionLine(S, R.d + 0.08); for (let i = 0; i < l.length - 1; i++) M.beam([l[i][0], R.h + 1.0, l[i][1]], [l[i + 1][0], R.h + 1.0, l[i + 1][1]], 0.05, rails); }
@@ -418,7 +421,9 @@ export class ArenaView {
       const n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 2));
       for (let i = 0; i < n; i++) { const p = [a[0] + (b[0] - a[0]) * i / n, a[1] + (b[1] - a[1]) * i / n], q = [a[0] + (b[0] - a[0]) * (i + 1) / n, a[1] + (b[1] - a[1]) * (i + 1) / n], m = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]; W.wall(p, q, y0, Math.min(cap, this.ceilAt(m[0], m[1])), k); }
     };
-    sections.forEach(S => { const P = S.profile, l = sectionLine(S, P.depth); for (let i = 0; i < l.length - 1; i++) wallTo(l[i], l[i + 1], P.top, wallC); });
+    // Con il muro delle nicchie (Zurigo) la testata e i suoi angoli non hanno il muro scuro dietro: li chiude la parete piatta.
+    const nicheEnd = A.extras?.nicheWall ? A.extras.nicheWall.side || 'east' : null;
+    sections.forEach(S => { if (S.hang || nicheEnd && (S.key === nicheEnd || (S.kind === 'arc' && S.wrap && S.end === nicheEnd))) return; const P = S.profile, l = sectionLine(S, P.depth); for (let i = 0; i < l.length - 1; i++) wallTo(l[i], l[i + 1], P.top, wallC); });
     const endCap = A.extras?.glassGables ? Y : Infinity, sideCap = A.extras?.glassGables === 'ends' ? Infinity : endCap;
     wallTo([-EX, -EZn], [EX, -EZn], 0, wc, sideCap); wallTo([-EX, EZs], [EX, EZs], 0, wc, sideCap); wallTo([-EX, -EZn], [-EX, EZs], 0, wc, endCap); wallTo([EX, -EZn], [EX, EZs], 0, wc, endCap);
     this.root.add(W.mesh({ side: THREE.FrontSide }));
@@ -634,7 +639,9 @@ export class ArenaView {
         }
         else if (b.kind === 'team') this.root.add(new THREE.Mesh(stripGeometry(l, b.y0 + 0.3, b.y1 - 0.3, { uScale: 10 }), teamMat));
       }
-      if (A.led.rim) this.root.add(new THREE.Mesh(stripGeometry(readable(sectionLine(S, P.depth - 0.06)), P.top + 0.25, P.top + 1.15, { uScale: 22 }), ledMat));
+      // Niente LED in cima alla testata del muro delle nicchie e ai tratti alti che la affiancano (Zurigo).
+      const nicheEnd = A.extras?.nicheWall ? A.extras.nicheWall.side || 'east' : null, noRim = S.hang || (nicheEnd && (S.key === nicheEnd || (S.kind === 'arc' && S.wrap && S.end === nicheEnd)));
+      if (A.led.rim && !noRim) this.root.add(new THREE.Mesh(stripGeometry(readable(sectionLine(S, P.depth - 0.06)), P.top + 0.25, P.top + 1.15, { uScale: 22 }), ledMat));
     }
     // Striscione della curva di casa sul muretto davanti alla prima fila.
     const H = A.home, curve = sectionByKey(this.layout, H.side), from = H.from ?? 0, to = H.to ?? 1;
@@ -691,6 +698,35 @@ export class ArenaView {
       const ring = roundedRect(X.ring.rx, X.ring.rz, Math.min(X.ring.rx, X.ring.rz) * 0.9, 12), y = this.lightY + 0.6;
       this.root.add(new THREE.Mesh(stripGeometry(ring, y - 1.6, y, { closed: true, uScale: 6 }), new THREE.MeshLambertMaterial({ color: '#2a2c31', side: THREE.DoubleSide })));
       this.root.add(new THREE.Mesh(stripGeometry(roundedRect(X.ring.rx - 0.05, X.ring.rz - 0.05, Math.min(X.ring.rx, X.ring.rz) * 0.9 - 0.05, 12), y - 1.6, y - 1.25, { closed: true }), new THREE.MeshBasicMaterial({ color: '#f4f1e6', side: THREE.DoubleSide })));
+    }
+    // Muro di cemento al posto dell'anello superiore (Zurigo, testata `side`): una parete piatta che chiude la testata da
+    // un lato lungo all'altro, appena dietro la linea di fondo della sua tribuna. La tribuna arriva fino al muro: tra la
+    // linea di fondo (che negli angoli curva) e la parete c'è il ripiano della balconata. Sul muro, sotto il tetto, una fila
+    // di nicchie a guscio poco profonde (larghe in alto, a punta arrotondata in basso), colorate a turno blu, bianco, rosso.
+    if (X.nicheWall) {
+      const NW = X.nicheWall, end = NW.side || 'east', sg = end === 'east' ? 1 : -1, Y = this.roofY, { EZn, EZs } = this.extent, conc = color(NW.color || '#c4c1ba');
+      const secs = sections.filter(S => S.key === end || (S.kind === 'arc' && S.end === end && S.wrap));
+      const pts = []; for (const S of secs) for (const [x, z] of sectionLine(S, S.profile.depth)) pts.push([x, z, S.profile.top]);
+      pts.sort((a, b) => a[1] - b[1]);
+      const xw = sg * (Math.max(...pts.map(p => sg * p[0])) + (NW.back ?? 0) + 0.02), top = Math.max(...pts.map(p => p[2]));
+      // Parete piatta, a tutta larghezza e dal pavimento al tetto (dietro le tribune non si vede la parte bassa).
+      const W = new Mesher();
+      W.quad([xw, 0, -EZn], [xw, 0, EZs], [xw, Y, EZs], [xw, Y, -EZn], conc);
+      // Ripiano della balconata tra la linea di fondo e la parete; ai due capi prosegue fino ai lati lunghi.
+      const line = [[pts[0][0], -EZn], ...pts.map(p => [p[0], p[1]]), [pts.at(-1)[0], EZs]], floorC = color(this.A.style.concrete).lerp(conc, 0.5);
+      for (let i = 0; i < line.length - 1; i++) { const [x0, z0] = line[i], [x1, z1] = line[i + 1]; if (Math.abs(z1 - z0) < 1e-3) continue; W.quad([x0, top - 0.04, z0], [x1, top - 0.04, z1], [xw, top - 0.04, z1], [xw, top - 0.04, z0], floorC); }
+      this.root.add(W.mesh());
+      // Nicchie equidistanti sulla parete, appena sporgenti.
+      const n = NW.n ?? 8, cols = (NW.colors || ['#1d4fd8', '#f4f4f2', '#e8202a']).map(color), wN = NW.w ?? 4.5, hN = NW.h ?? 8, dN = NW.depth ?? 0.8, yTop = Y - (NW.top ?? 1.5), NM = cols.map(() => new Mesher());
+      const span = (EZn + EZs) * (NW.span ?? 0.86), z0 = (EZs - EZn) / 2 - span / 2;
+      for (let k = 0; k < n; k++) {
+        const cz = z0 + span * (k + 0.5) / n, col = cols[k % cols.length], N = NM[k % cols.length], SU = 10, SV = 12;
+        const P = (su, sv) => { const s = -1 + 2 * su / SU, v = sv / SV, hw = wN / 2 * Math.pow(1 - v, 0.55), d = dN * Math.sqrt(Math.max(0, 1 - s * s)) * Math.pow(1 - v, 0.35); return [xw - sg * (0.03 + d), yTop - v * hN, cz + s * hw]; };
+        for (let i = 0; i < SU; i++) for (let j = 0; j < SV; j++) N.quad(P(i, j), P(i + 1, j), P(i + 1, j + 1), P(i, j + 1), col.clone().multiplyScalar(0.9 + 0.1 * Math.cos((i / SU - 0.5) * Math.PI)));
+        for (let i = 0; i < SU; i++) N.tri([xw - sg * 0.03, yTop, cz], P(i, 0), P(i + 1, 0), col.clone().multiplyScalar(0.8));
+      }
+      // Ogni colore ha la sua luce (come i fari colorati delle foto), così il blu e il rosso restano pieni.
+      NM.forEach((N, i) => { if (!N.empty) this.root.add(N.mesh({ emissive: cols[i], emissiveIntensity: NW.glow ?? 0.35 })); });
     }
     // Gagliardetti appesi sopra un lato (Zurigo): triangoli bianchi, blu e rossi.
     if (X.pennants) {
@@ -751,7 +787,7 @@ export class ArenaView {
           const shirt = weighted(rand, mixes[zone]);
           const bounce = zone === 'curve' ? 0.1 + rand() * 0.08 : zone === 'guest' ? 0.08 + rand() * 0.07 : zone === 'standing' ? 0.05 + rand() * 0.05 : 0;
           fans.push({ x: p.x, z: p.z, y: fy, yaw: Math.atan2(-p.dz, p.dx), standing: R.standing || zone === 'guest', shirt, head: rand() < 0.12 ? (zone === 'guest' ? TA.primary : TH.primary) : pick(rand, SKIN), bounce, phase: rand() * 6.28 });
-          const flagChance = zone === 'curve' ? (ri > 0 ? 0.085 : 0) : zone === 'standing' ? 0.025 : zone === 'guest' ? 0.07 : zone === 'side' && R.tier > 0 && !R.vip ? A.sideFlags ?? 0 : 0;
+          const flagChance = zone === 'curve' ? (ri > 0 ? A.curveFlags ?? 0.085 : 0) : zone === 'standing' ? 0.025 : zone === 'guest' ? 0.07 : zone === 'side' && R.tier > 0 && !R.vip ? A.sideFlags ?? 0 : 0;
           if (rand() < flagChance) (zone === 'guest' ? flags.away : flags.home).push({ ...p, y: R.h, big: zone === 'curve' && rand() < 0.07, design: rand(), phase: rand() * 6.28 });
         }
       });

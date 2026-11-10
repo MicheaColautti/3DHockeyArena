@@ -2,7 +2,7 @@
 // Convenzione: x lungo la pista, z in larghezza. Nord = z < 0 (lato lontano dalla telecamera), sud = z > 0 (panchine).
 // Ovest = x < 0, est = x > 0. Lungo una sezione t va da 0 a 1: da ovest a est sui lati lunghi, da nord a sud sui lati corti.
 
-import { RINK } from './common.js?v=93';
+import { RINK } from './common.js?v=109';
 
 export const SIDES = ['north', 'south', 'west', 'east'];
 
@@ -56,7 +56,10 @@ export function buildLayout(A) {
   }
   const corners = A.corners === true ? { west: 'side', east: 'side' } : (A.corners || {});
   const cx = halfL - corner, cz = halfW - corner;
-  const x0 = corners.west ? -cx : -ex, x1 = corners.east ? cx : ex;
+  // sidesTo: ['east'] = i lati lunghi proseguono dritti fino in fondo alla testata (oltre la sua tribuna), che sta tra
+  // loro con gli angoli a squadra (Zurigo: le tribune laterali arrivano al muro delle nicchie).
+  const to = k => (A.sidesTo || []).includes(k) && !corners[k] ? P[k].depth : 0;
+  const x0 = corners.west ? -cx : -ex - to('west'), x1 = corners.east ? cx : ex + to('east');
   const end = key => { const c = corners[key]; return { z0: c ? -cz : -zn, z1: c ? cz : zs }; };
   const W = end('west'), E = end('east');
   const sections = [
@@ -71,6 +74,35 @@ export function buildLayout(A) {
     const a0 = Math.atan2(0, sx); let a1 = Math.atan2(sz, 0);
     if (Math.abs(a1 - a0) > Math.PI) a1 += a1 < a0 ? 2 * Math.PI : -2 * Math.PI;
     sections.push({ key: `corner-${endKey}-${side}`, kind: 'arc', cx: sx * cx, cz: sz * cz, rx: ex - cx, rz: (sz < 0 ? zn : zs) - cz, a0, a1, end: endKey, side, wrap: mode === 'end', profile: mode === 'end' ? P[endKey] : P[side], chamfer: A.cornerStyle === 'chamfer', chamferFrom: ((mode === 'end' ? P[endKey] : P[side]).bands[0]?.d ?? 0) - 0.01 });
+  }
+  // upperArc (Zurigo): l'anello superiore dei lati lunghi gira sopra l'angolo curvo del primo anello e prosegue lungo la
+  // testata, a scalare. Ogni fila è una sezione appesa (hang) a sé: la prima fa il giro completo (arco + tratto dritto
+  // lungo la testata, dove incontra quella dell'altro lato); le altre si fermano sempre un po' prima. Nessuna fila passa
+  // oltre il muro di fondo (`wall` = distanza del muro dal fronte della testata): l'arco si ferma appena prima.
+  const UA = A.upperArc;
+  if (UA) {
+    const end = UA.end || 'east', sx = end === 'east' ? 1 : -1, wall = UA.wall ?? P[end].depth + 3, rx = ex - cx, gap = UA.gap ?? 0.3;
+    for (const side of ['north', 'south']) {
+      const Q = P[side], rows = Q.rows.filter(R => R.tier > 0), sz = side === 'north' ? -1 : 1, rz = (sz < 0 ? zn : zs) - cz;
+      if (!rows.length) continue;
+      const a0 = Math.atan2(0, sx); let a1 = Math.atan2(sz, 0); if (Math.abs(a1 - a0) > Math.PI) a1 += a1 < a0 ? 2 * Math.PI : -2 * Math.PI;
+      const main = sections.find(S => S.key === side); if (main) main.hangEnd = sx > 0 ? 1 : 0;
+      rows.forEach((R0, k) => {
+        const R = { ...R0, index: 0, first: true, below: k === 0 ? Math.max(R0.below, R0.h - (UA.parapet ?? 1.2)) : R0.below };
+        const prof = { rows: [R], bands: [], floors: [], base: R.h, depth: R.d + R.depth, top: R.h };
+        // Angolo (dalla direzione della testata) dove la fila incontra il muro, e quello voluto per la scala.
+        const back = rx + R.d + R.depth, cosW = (rx + wall - gap) / back, clip = cosW >= 1 ? 0 : Math.acos(cosW), want = k <= 1 ? 0 : (k - 1) * (UA.stepDeg ?? 6) * Math.PI / 180;
+        const th = Math.max(clip, want); if (th >= Math.PI / 2 - 0.05) return;
+        const b0 = a0 + (a1 - a0) * (th / (Math.PI / 2));
+        sections.push({ key: `corner-${end}-${side}-up${k}`, kind: 'arc', hang: true, capStart: th > 0, cx: sx * cx, cz: sz * cz, rx, rz, a0: b0, a1, end, side, wrap: false, profile: prof, chamfer: false, chamferFrom: 0 });
+        // Tratto dritto lungo la testata: la prima fila arriva a metà (incontra l'altra), la seconda si ferma prima.
+        const L = k === 0 ? cz : k === 1 ? cz * (UA.second ?? 0.45) : 0;
+        if (L > 0.3 && clip === 0) {
+          const zA = sz * cz, zB = sz * (cz - L);
+          sections.push({ key: `${end}-up${k}-${side}`, kind: 'straight', hang: true, capEnd: k > 0, ox: sx * ex, oz: (zA + zB) / 2, dx: 0, dz: 1, nx: sx, nz: 0, len: Math.abs(zA - zB), profile: prof });
+        }
+      });
+    }
   }
   return { sections, ex, zn, zs, profiles: P };
 }
@@ -169,7 +201,7 @@ export function inZone(S, t, R, z) {
 
 export function zoneAt(A, S, t, R) {
   if (inZone(S, t, R, A.guest)) return 'guest';
-  if (inZone(S, t, R, A.home) || (S.kind === 'arc' && S.wrap && A.home?.side === S.end && (A.home.tier == null || A.home.tier === R.tier))) return R.standing ? 'curve' : 'side';
+  if (inZone(S, t, R, A.home) || (S.kind === 'arc' && S.wrap && A.home?.side === S.end && (A.home.tier == null || A.home.tier === R.tier))) return R.standing || A.home?.seatedCurve ? 'curve' : 'side';
   for (const z of A.standing || []) if (inZone(S, t, R, z) && R.standing) return 'standing';
   return 'side';
 }
