@@ -6,6 +6,8 @@
 //                 { rows, rise (m per fila), depth (m per fila), standing, gap: { depth, rise }, fascia: 'led'|'suites'|'team'|'plain' }
 // corners         false (aperti) | true (girano le tribune laterali) | { west: 'end'|'side', east: 'end'|'side' }
 //                 'end' = l'angolo prende il profilo del lato corto (curva che avvolge gli angoli)
+//                 'wedge' = cunei d'angolo (Lugano): prisma triangolare con la gradinata che scende verso il ghiaccio; opzioni in wedge
+//                 { h0, top, row, edge, stair, at: { 'west-north': {...} } } (vedi layout.js → wedgeSection)
 // home            curva di casa { side, from, to } (t da 0 a 1 lungo il lato; vedi layout.js)
 // standing        altri settori in piedi di casa [{ side, from, to }]
 // guest           settore ospiti { side, from, to, tier, corner, standing }: corner = prosegue nell'angolo verso quel lato,
@@ -57,11 +59,11 @@ export const ARENAS = {
       west: { base: 2.4, tiers: [standing(22, 0.38, 0.55), suites(2), balcony()] },
       east: { base: 2.2, tiers: [standing(18, 0.38, 0.55), upper(8, 0.5, 0.8, 'suites', { depth: 1.4, rise: 2.4 }), balcony()] },
     },
-    corners: { west: 'end', east: 'end' },
+    corners: 'wedge',
     noAisles: true, guestWall: true,
     home: { side: 'west' },
-    standing: [{ side: 'east', corner: 'north', tier: 0 }, { side: 'east', from: 0, to: 0.5, tier: 0 }],
-    guest: { side: 'east', from: 0.54, to: 1, tier: 0, corner: 'south' },
+    standing: [{ side: 'east', from: 0, to: 0.5, tier: 0 }],
+    guest: { side: 'east', from: 0.54, to: 1, tier: 0 },
     led: { boards: true, rim: false },
     roof: { type: 'truss', clear: 6.5, color: '#2a2d32', steel: '#d5d8dc', cross: true },
     cube: { w: 6, h: 3.4 },

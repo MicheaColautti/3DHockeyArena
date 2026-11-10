@@ -2,7 +2,7 @@
 // Convenzione: x lungo la pista, z in larghezza. Nord = z < 0 (lato lontano dalla telecamera), sud = z > 0 (panchine).
 // Ovest = x < 0, est = x > 0. Lungo una sezione t va da 0 a 1: da ovest a est sui lati lunghi, da nord a sud sui lati corti.
 
-import { RINK } from './common.js?v=59';
+import { RINK } from './common.js?v=61';
 
 export const SIDES = ['north', 'south', 'west', 'east'];
 
@@ -40,22 +40,18 @@ export function buildLayout(A) {
   const P = Object.fromEntries(SIDES.map(k => [k, makeProfile(A.stands[k])]));
   // Angoli: false = aperti; true = tribune laterali che girano; { west: 'end' } = la curva ovest avvolge i suoi angoli.
   // Dove l'angolo è chiuso, le file seguono la curva della balaustra (archi concentrici agli angoli della pista).
-  // 'fill' = i quattro lati arrivano dritti fino in fondo e un blocco d'angolo a cuneo li unisce (Lugano):
-  // file diagonali, profilo proprio (stands.corner, più basso dei lati), scala al centro.
-  if (A.corners === 'fill') {
-    const Pc = A.stands.corner ? makeProfile(A.stands.corner) : null;
+  // 'wedge' = cunei d'angolo (Lugano): i quattro lati arrivano dritti fino al rettangolo esterno e ogni angolo è un prisma
+  // a base triangolare troncato in diagonale. In pianta è un triangolo con il vertice verso lo spigolo della pista e i due
+  // cateti lungo le testate delle tribune vicine; sopra, la gradinata sale dal vertice (basso, vicino al ghiaccio) fino
+  // all'ipotenusa in fondo (alta). File parallele all'ipotenusa, scala al centro.
+  if (A.corners === 'wedge') {
     const sections = [
       { key: 'north', kind: 'straight', ox: 0, oz: -zn, dx: 1, dz: 0, nx: 0, nz: -1, len: 2 * ex, profile: P.north },
       { key: 'south', kind: 'straight', ox: 0, oz: zs, dx: 1, dz: 0, nx: 0, nz: 1, len: 2 * ex, profile: P.south },
       { key: 'west', kind: 'straight', ox: -ex, oz: (zs - zn) / 2, dx: 0, dz: 1, nx: -1, nz: 0, len: zn + zs, profile: P.west },
       { key: 'east', kind: 'straight', ox: ex, oz: (zs - zn) / 2, dx: 0, dz: 1, nx: 1, nz: 0, len: zn + zs, profile: P.east },
     ];
-    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-      const endKey = sx < 0 ? 'west' : 'east', side = sz < 0 ? 'north' : 'south';
-      const a0 = Math.atan2(0, sx); let a1 = Math.atan2(sz, 0);
-      if (Math.abs(a1 - a0) > Math.PI) a1 += a1 < a0 ? 2 * Math.PI : -2 * Math.PI;
-      sections.push({ key: `corner-${endKey}-${side}`, kind: 'arc', cx: sx * ex, cz: sz < 0 ? -zn : zs, rx: 0, rz: 0, a0, a1, end: endKey, side, wrap: false, profile: Pc || P[side], chamfer: true, chamferFrom: -1, fill: true });
-    }
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) sections.push(wedgeSection(A, P, sx, sz, ex, zn, zs));
     return { sections, ex, zn, zs, profiles: P };
   }
   const corners = A.corners === true ? { west: 'side', east: 'side' } : (A.corners || {});
@@ -79,9 +75,25 @@ export function buildLayout(A) {
   return { sections, ex, zn, zs, profiles: P };
 }
 
+// Cuneo d'angolo. Cateti: lungo x (accanto alla testata, lungo quanto è profonda la tribuna del lato corto) e lungo z
+// (accanto al lato lungo, profondo quanto la sua tribuna). d = distanza dal vertice misurata perpendicolare all'ipotenusa.
+// Il vertice è spostato di 5 cm dentro l'angolo: le facce del cuneo non stanno mai sullo stesso piano delle testate vicine.
+// A.wedge: { h0 (quota del vertice), top (quota in fondo; default la più bassa delle due tribune vicine), row (profondità
+// della fila), edge (colore del parapetto sui cateti), at: { 'west-north': { ...override } } }.
+function wedgeSection(A, P, sx, sz, ex, zn, zs) {
+  const endKey = sx < 0 ? 'west' : 'east', side = sz < 0 ? 'north' : 'south';
+  const W = { ...(A.wedge || {}), ...(A.wedge?.at?.[`${endKey}-${side}`] || {}) };
+  const Le = P[endKey].depth, Ln = P[side].depth, hyp = Math.hypot(Le, Ln), H = Le * Ln / hyp;
+  const h0 = W.h0 ?? Math.min(P[endKey].base, P[side].base), top = W.top ?? Math.min(P[endKey].top, P[side].top);
+  const n = Math.max(2, Math.round(H / (W.row ?? 0.85)));
+  const profile = makeProfile({ base: h0, tiers: [{ rows: n, rise: (top - h0) / (n - 1), depth: H / n }] });
+  return { key: `wedge-${endKey}-${side}`, kind: 'wedge', ix: sx * (ex + 0.05), iz: sz < 0 ? -(zn + 0.05) : zs + 0.05, sx, sz, Le, Ln, H,
+    nx: sx * Ln / hyp, nz: sz * Le / hyp, end: endKey, side, wrap: false, profile, edge: W.edge, stair: W.stair ?? true };
+}
+
 // Valori di t per una sezione: passo regolare più i tagli richiesti (confini dei settori), ordinati.
 export function sectionTs(S, t0 = 0, t1 = 1, step = 7, cuts = []) {
-  const n = S.kind === 'straight' ? Math.max(1, Math.round(S.len * (t1 - t0) / step)) : 14;
+  const n = S.kind === 'straight' ? Math.max(1, Math.round(S.len * (t1 - t0) / step)) : S.kind === 'wedge' ? 4 : 14;
   const ts = Array.from({ length: n + 1 }, (_, i) => t0 + (t1 - t0) * i / n);
   for (const c of cuts) if (c > t0 + 1e-3 && c < t1 - 1e-3 && !ts.some(t => Math.abs(t - c) < 0.02)) ts.push(c);
   return ts.sort((a, b) => a - b);
@@ -97,6 +109,11 @@ export function sectionPoint(S, t, d) {
   if (S.kind === 'straight') {
     const s = (t - 0.5) * S.len;
     return { x: S.ox + S.dx * s + S.nx * d, z: S.oz + S.dz * s + S.nz * d, nx: S.nx, nz: S.nz };
+  }
+  if (S.kind === 'wedge') {
+    // t = 0 sul cateto accanto alla testata, t = 1 sul cateto accanto al lato lungo.
+    const f = d / S.H;
+    return { x: S.ix + S.sx * S.Le * f * (1 - t), z: S.iz + S.sz * S.Ln * f * t, nx: S.nx, nz: S.nz };
   }
   if (S.chamfer && d >= S.chamferFrom) {
     // Anello superiore con l'angolo smussato: un taglio dritto in diagonale (Lugano); l'anello basso segue la balaustra.
@@ -132,7 +149,7 @@ export function samplePolyline(pts, spacing, rand, jitter = 0.1) {
 export function inZone(S, t, R, z) {
   if (!z) return false;
   if (z.tier != null && z.tier !== R.tier) return false;
-  if (S.kind === 'arc') {
+  if (S.kind !== 'straight') {
     if (z.corner) return (S.end === z.side && S.side === z.corner) || (S.side === z.side && S.end === z.corner);
     return S.wrap && S.end === z.side && z.from == null && z.to == null;
   }
