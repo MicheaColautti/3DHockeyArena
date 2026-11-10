@@ -4,8 +4,8 @@
 // finisce nella lista `night` restituita, e la vista ne regola l'intensità durante il tramonto.
 
 import * as THREE from 'three';
-import { TEAMS } from './teams.js?v=37';
-import { seeded, color, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect } from './common.js?v=37';
+import { TEAMS } from './teams.js?v=46';
+import { seeded, color, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect } from './common.js?v=46';
 
 const pick3 = (rand, list) => list[Math.floor(rand() * list.length)];
 const GROUND = { urban: '#8e8f88', alpine: '#6f8a55', grass: '#79925a', snow: '#e6ebf0' };
@@ -97,6 +97,13 @@ function facadeTextures(E) {
   } else if (f === 'glass') {
     glass(0.12, 0.86, 22, '#35495c'); lit(0.14, 0.86, 0.85, 22); g.fillStyle = light; g.fillRect(0, 0, W, H * 0.12);
     ground(0.86);
+  } else if (f === 'hallglass') {
+    // Lugano: zoccolo in cemento chiaro con gli ingressi, sopra una fascia vetrata a montanti fitti che di sera si accende.
+    for (let x = 0; x < W; x += 64) { g.fillStyle = dark; g.fillRect(x, H * 0.5, 2, H * 0.5); }
+    g.fillStyle = light; g.fillRect(0, H * 0.48, W, 4);
+    glass(0.06, 0.46, 10, '#3a4651'); n.fillStyle = warm(0.85); n.fillRect(0, H * 0.08, W, H * 0.38); n.fillStyle = 'rgba(0,0,0,.55)'; for (let x = 0; x < W; x += 10) n.fillRect(x, H * 0.08, 1, H * 0.38);
+    g.fillStyle = dark; g.fillRect(0, 0, W, H * 0.06);
+    for (let x = 30; x < W; x += 170) { g.fillStyle = '#2b3036'; g.fillRect(x, H * 0.8, 26, H * 0.2); n.fillStyle = warm(0.9); n.fillRect(x, H * 0.8, 26, H * 0.2); }
   } else if (f === 'fins') {
     for (let x = 0; x < W; x += 24) { g.fillStyle = dark; g.fillRect(x, 0, 6, H); g.fillStyle = light; g.fillRect(x + 6, 0, 2, H); n.fillStyle = warm(0.22); n.fillRect(x + 8, H * 0.1, 15, H * 0.75); }
     ground(0.86);
@@ -362,7 +369,7 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, logo, time = { value: 0 
     roof.add(M.mesh({ flatShading: true })); top = y + rise;
   } else if (kind === 'barrel') {
     // Volta a botte con l'asse lungo la pista, eventualmente arretrata dentro un bordo piano (Berna, Ambrì, Langnau, Lugano).
-    const inset = E.inset ?? 0, bx0 = X0 + inset, bx1 = X1 - inset, bz0 = Z0 + inset, bz1 = Z1 - inset, zc = (bz0 + bz1) / 2, hz = (bz1 - bz0) / 2, rise = E.rise ?? hz * 0.35;
+    const inset = E.inset ?? 0, eo = E.eaveOut ?? 0, bx0 = X0 + inset - eo, bx1 = X1 - inset + eo, bz0 = Z0 + inset - eo, bz1 = Z1 - inset + eo, zc = (bz0 + bz1) / 2, hz = (bz1 - bz0) / 2, rise = E.rise ?? hz * 0.35;
     if (inset > 0) { flatTop(fp, H + 0.02, E.rimMat || 'membrane'); parapet(fp, H, H + 1); }
     const N = 24, pos = [], uv = [], idx = [], base = H + (inset > 0 ? 0.6 : 0);
     let s = 0;
@@ -375,11 +382,18 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, logo, time = { value: 0 
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx); geo.computeVertexNormals();
     const tex = roofTexture(mat, E.roofColor); tex.wrapT = THREE.RepeatWrapping;
     roof.add(new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide })));
-    const M = new Mesher(), cap = color(E.caps || E.wall || '#d7d3c9');
-    for (let i = 0; i < N; i++) {
+    const M = new Mesher(), cap = color(E.caps || E.wall || '#d7d3c9'), cx0 = bx0 + eo, cx1 = bx1 - eo;
+    if (E.capsGlass) {
+      // Testate vetrate sotto l'arco: di sera brillano come grandi finestre.
+      const gp = [], gu = [], gi = [];
+      for (const x of [cx0, cx1]) for (let i = 0; i <= N; i++) { const u = -1 + 2 * i / N, y = base + rise * Math.sqrt(1 - u * u) - 0.1, z = zc + u * hz; const k = gp.length / 3, xo = x + Math.sign(x) * 0.08; gp.push(xo, base + 0.05, z, xo, y, z); gu.push((z - bz0) / 3, 0, (z - bz0) / 3, (y - base) / 6); if (i) gi.push(k - 2, k - 1, k, k - 1, k + 1, k); }
+      const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(gp, 3)); gg.setAttribute('uv', new THREE.Float32BufferAttribute(gu, 2)); gg.setIndex(gi); gg.computeVertexNormals();
+      roof.add(new THREE.Mesh(gg, nightMat(new THREE.MeshLambertMaterial({ map: glazingTexture(), emissiveMap: glazingNightTexture(E.glow || '#f4f1e6'), emissive: color('#ffffff'), emissiveIntensity: 0.05, side: THREE.DoubleSide }), 1.1, 'emissiveIntensity', 0.05)));
+    } else for (let i = 0; i < N; i++) {
       const u0 = -1 + 2 * i / N, u1 = -1 + 2 * (i + 1) / N, y0 = base + rise * Math.sqrt(1 - u0 * u0), y1 = base + rise * Math.sqrt(1 - u1 * u1);
-      for (const x of [bx0, bx1]) M.quad([x, base, zc + u0 * hz], [x, base, zc + u1 * hz], [x, y1, zc + u1 * hz], [x, y0, zc + u0 * hz], cap);
+      for (const x of [cx0, cx1]) M.quad([x, base, zc + u0 * hz], [x, base, zc + u1 * hz], [x, y1, zc + u1 * hz], [x, y0, zc + u0 * hz], cap);
     }
+    if (E.roofVents) for (let i = 0; i < E.roofVents.n; i++) { const x = bx0 + (bx1 - bx0) * (i + 1) / (E.roofVents.n + 1), u = (i % 2 ? 0.45 : -0.3), m = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 0.9, 20), new THREE.MeshLambertMaterial({ color: E.roofVents.color || '#c0392b' })); m.position.set(x, base + rise * Math.sqrt(1 - u * u) + 0.3, zc + u * hz); group.add(m); }
     if (inset <= 0) parapet(fp, H - 0.4, H + 0.3);
     roof.add(M.mesh()); top = base + rise;
   } else if (kind === 'canopy') {
@@ -409,6 +423,16 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, logo, time = { value: 0 
       for (let z = Z0 + 4; z < Z1 - 4; z += 7) { M.quad([X0 + 3, H, z], [X1 - 3, H, z], [X1 - 3, H + 2.4, z + 2.2], [X0 + 3, H + 2.4, z + 2.2], g); M.quad([X0 + 3, H + 2.4, z + 2.2], [X1 - 3, H + 2.4, z + 2.2], [X1 - 3, H, z + 5.5], [X0 + 3, H, z + 5.5], k); }
       roof.add(M.mesh());
     }
+  }
+
+  // Cornici sporgenti che separano i livelli della facciata (es. zoccolo / vetrata / volta a Lugano).
+  for (const f of E.ledges || []) {
+    const y = H * f, ring = grow(fp, 0.55), L = new Mesher(), k = color(E.ledgeColor || '#e4e1da');
+    ring.forEach((a, i) => { const b = ring[(i + 1) % ring.length], a0 = fp[i], b0 = fp[(i + 1) % fp.length];
+      L.quad([a[0], y, a[1]], [b[0], y, b[1]], [b[0], y + 0.6, b[1]], [a[0], y + 0.6, a[1]], k);
+      L.quad([a0[0], y + 0.6, a0[1]], [b0[0], y + 0.6, b0[1]], [b[0], y + 0.6, b[1]], [a[0], y + 0.6, a[1]], k.clone().multiplyScalar(1.05));
+      L.quad([a0[0], y, a0[1]], [b0[0], y, b0[1]], [b[0], y, b[1]], [a[0], y, a[1]], k.clone().multiplyScalar(0.6)); });
+    group.add(L.mesh());
   }
 
   // Insegna sul lato principale (sud).
@@ -544,6 +568,37 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, logo, time = { value: 0 
       const tt = towerTextures(A.team), tm = nightMat(new THREE.MeshLambertMaterial({ map: tt.day, emissiveMap: tt.night, emissive: color('#ffffff'), emissiveIntensity: 0 }), 1);
       const tower = new THREE.Mesh(geo, tm); tower.position.set(p.cx, h / 2, p.cz); group.add(tower);
       occupy(p.cx - p.lx / 2 - 4, p.cx + p.lx / 2 + 4, p.cz - p.lz / 2 - 4, p.cz + p.lz / 2 + 4);
+    } else if (f.type === 'plaza') {
+      // Piazzale pavimentato o percorso pedonale (anche colorato, es. la passerella rossa di Lugano), con lampioni bassi.
+      const p = place(f, f.w ?? 20, f.len ?? 40);
+      flat(p, f.color || '#c9c5bc', f.y ?? 0.05);
+      const L = p.along === 'x' ? p.lx : p.lz; for (let u = -L / 2 + 4; u < L / 2; u += f.lampEvery ?? 12) { const [x, z] = along(p, u, (p.along === 'x' ? p.lz : p.lx) / 2 - 1); M.box(x, 2, z, 0.15, 4, 0.15, color('#6b6f75')); lamps.push({ x, y: 4, z, c: f.light || '#fff1d6', s: 1.6 }); pools.push([x, z]); }
+      occupy(p.cx - p.lx / 2, p.cx + p.lx / 2, p.cz - p.lz / 2, p.cz + p.lz / 2);
+    } else if (f.type === 'gates') {
+      // Ingressi controllati: recinzione lungo il piazzale, cancelli con tornelli e piccole casse coperte.
+      const p = place(f, 2, f.len ?? 40), L = p.along === 'x' ? p.lx : p.lz, fence = color('#7d8288'), kiosk = color(f.color || '#e8e6e1');
+      for (let u = -L / 2; u <= L / 2; u += 2.5) { const [x, z] = along(p, u, 0); M.box(x, 1.1, z, 0.12, 2.2, 0.12, fence); }
+      const a0 = along(p, -L / 2, 0), a1 = along(p, L / 2, 0); M.beam([a0[0], 2.1, a0[1]], [a1[0], 2.1, a1[1]], 0.06, fence); M.beam([a0[0], 0.3, a0[1]], [a1[0], 0.3, a1[1]], 0.06, fence);
+      for (const u of f.at || [-L / 4, L / 4]) { const [x, z] = along(p, u, 0); M.box(x, 1.4, z, p.along === 'x' ? 6 : 3, 2.8, p.along === 'x' ? 3 : 6, kiosk); M.box(x, 2.95, z, p.along === 'x' ? 7.5 : 4, 0.3, p.along === 'x' ? 4 : 7.5, color('#3b3f45')); lamps.push({ x, y: 3.2, z, c: '#ffffff', s: 2 }); windows.push({ x, y: 1.6, z, c: '#ffe2b5', s: 1.6 }); }
+    } else if (f.type === 'ducts') {
+      // Condotte di ventilazione argentate addossate a una testata.
+      const p = place(f, 3, f.len ?? 20), L = p.along === 'x' ? p.lx : p.lz, mat2 = new THREE.MeshLambertMaterial({ color: '#c9ccd0' });
+      for (let k = 0; k < (f.n ?? 4); k++) { const r = f.r ?? 0.4, m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, L, 12), mat2); const [x, z] = along(p, 0, 0); m.position.set(x, (f.y ?? 8) + k * r * 2.6, z); m.rotation.set(p.along === 'x' ? 0 : Math.PI / 2, 0, p.along === 'x' ? Math.PI / 2 : 0); group.add(m); }
+    } else if (f.type === 'drum') {
+      // Corpo cilindrico basso in cemento (scale e servizi) addossato a un angolo.
+      const p = place(f, (f.r ?? 9) * 2, (f.r ?? 9) * 2), m = new THREE.Mesh(new THREE.CylinderGeometry(f.r ?? 9, f.r ?? 9, f.h ?? 10, 32), new THREE.MeshLambertMaterial({ color: f.color || '#d9d6cf' }));
+      m.position.set(p.cx, (f.h ?? 10) / 2, p.cz); group.add(m); buildingWindows(p.cx, p.cz, (f.r ?? 9) * 1.4, (f.r ?? 9) * 1.4, f.h ?? 10, 0, 0.3);
+      occupy(p.cx - p.lx / 2, p.cx + p.lx / 2, p.cz - p.lz / 2, p.cz + p.lz / 2);
+    } else if (f.type === 'trucks') {
+      // Camion parcheggiati in fila (regia TV, logistica): motrice e rimorchio, affiancati.
+      const p = place(f, 16, f.len ?? 40), L = p.along === 'x' ? p.lx : p.lz, n = f.n ?? 4, cols = f.colors || ['#f2f2f0', '#e8e8e4', '#1f4f9e', '#f2f2f0', '#b8bcc2'];
+      for (let i = 0; i < n; i++) {
+        const u = -L / 2 + (i + 0.5) * L / n, k = color(cols[i % cols.length]), cab = color(i % 2 ? '#2b2e33' : '#d9dadc');
+        const put = (o, len, w, h, c2) => { const [x, z] = along(p, u, o); if (p.along === 'x') M.box(x, h / 2 + 0.5, z, w, h, len, c2); else M.box(x, h / 2 + 0.5, z, len, h, w, c2); };
+        put(-1.5, 13, 2.5, 3.6, k); put(6.4, 2.6, 2.5, 2.8, cab);
+        const [x, z] = along(p, u, 0); windows.push({ x, y: 2.2, z, c: '#ffe2b5', s: 1 });
+      }
+      occupy(p.cx - p.lx / 2, p.cx + p.lx / 2, p.cz - p.lz / 2, p.cz + p.lz / 2);
     } else if (f.type === 'silos') {
       // Impianto di betonaggio: silos cilindrici e un nastro inclinato (accanto al Gottardo).
       const p = place(f, 30, 30), g = color('#c9cbcc');
@@ -574,6 +629,8 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, logo, time = { value: 0 
         const w = 12 + rand() * 18, d = 12 + rand() * 18, h = 8 + rand() * (f.height ?? 22), ry = rand() * 0.3;
         M.box(x, h / 2, z, w, h, d, color(pick3(rand, ['#d8d3c8', '#c9c4ba', '#b8b4ad', '#e2ddd2', '#a9a59e'])), ry);
         M.box(x, h + 0.4, z, w * 0.96, 0.8, d * 0.96, color(snow ? '#eef2f5' : '#7c7a76'), ry);
+        // Fasce di finestre a ogni piano, così i palazzi si leggono come case e non come blocchi.
+        for (let fy = 2; fy < h - 1.5; fy += 3.2) M.box(x, fy, z, w + 0.12, 1.1, d + 0.12, color('#4a535c'), ry);
         buildingWindows(x, z, w, d, h, ry, 0.33);
         if (rand() < 0.4) lampAt(x + w / 2 + 4, z + d / 2 + 4, 7);
         occupy(x - w / 2, x + w / 2, z - d / 2, z + d / 2);
@@ -626,7 +683,7 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, logo, time = { value: 0 
   if (E.mountains) {
     const n = E.mountains, MM = new Mesher();
     for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2 + rand() * 0.3, r = 520 + rand() * 380, x = Math.cos(a) * r, z = Math.sin(a) * r, h = 140 + rand() * 300, w = 160 + rand() * 220;
+      const a = (i / n) * Math.PI * 2 + rand() * 0.3, r = (E.mountainDist ?? 520) + rand() * 380, x = Math.cos(a) * r, z = Math.sin(a) * r, h = 140 + rand() * 300, w = Math.min(160 + rand() * 220, r * 0.38);
       const peak = [x, h, z], segs = 7, base = Array.from({ length: segs }, (_, j) => { const b = j / segs * Math.PI * 2; return [x + Math.cos(b) * w, -1, z + Math.sin(b) * w]; });
       const rock = color(rand() < 0.5 ? '#6e7568' : '#7d8273'), snowC = color('#f1f3f4');
       base.forEach((p, j) => {

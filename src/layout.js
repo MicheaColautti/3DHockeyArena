@@ -2,7 +2,7 @@
 // Convenzione: x lungo la pista, z in larghezza. Nord = z < 0 (lato lontano dalla telecamera), sud = z > 0 (panchine).
 // Ovest = x < 0, est = x > 0. Lungo una sezione t va da 0 a 1: da ovest a est sui lati lunghi, da nord a sud sui lati corti.
 
-import { RINK } from './common.js?v=37';
+import { RINK } from './common.js?v=46';
 
 export const SIDES = ['north', 'south', 'west', 'east'];
 
@@ -56,7 +56,7 @@ export function buildLayout(A) {
     if (!mode) continue;
     const a0 = Math.atan2(0, sx); let a1 = Math.atan2(sz, 0);
     if (Math.abs(a1 - a0) > Math.PI) a1 += a1 < a0 ? 2 * Math.PI : -2 * Math.PI;
-    sections.push({ key: `corner-${endKey}-${side}`, kind: 'arc', cx: sx * cx, cz: sz * cz, rx: ex - cx, rz: (sz < 0 ? zn : zs) - cz, a0, a1, end: endKey, side, wrap: mode === 'end', profile: mode === 'end' ? P[endKey] : P[side] });
+    sections.push({ key: `corner-${endKey}-${side}`, kind: 'arc', cx: sx * cx, cz: sz * cz, rx: ex - cx, rz: (sz < 0 ? zn : zs) - cz, a0, a1, end: endKey, side, wrap: mode === 'end', profile: mode === 'end' ? P[endKey] : P[side], chamfer: A.cornerStyle === 'chamfer', chamferFrom: ((mode === 'end' ? P[endKey] : P[side]).bands[0]?.d ?? 0) - 0.01 });
   }
   return { sections, ex, zn, zs, profiles: P };
 }
@@ -79,6 +79,13 @@ export function sectionPoint(S, t, d) {
   if (S.kind === 'straight') {
     const s = (t - 0.5) * S.len;
     return { x: S.ox + S.dx * s + S.nx * d, z: S.oz + S.dz * s + S.nz * d, nx: S.nx, nz: S.nz };
+  }
+  if (S.chamfer && d >= S.chamferFrom) {
+    // Anello superiore con l'angolo smussato: un taglio dritto in diagonale (Lugano); l'anello basso segue la balaustra.
+    const ax = S.cx + Math.cos(S.a0) * (S.rx + d), az = S.cz + Math.sin(S.a0) * (S.rz + d), bx = S.cx + Math.cos(S.a1) * (S.rx + d), bz = S.cz + Math.sin(S.a1) * (S.rz + d);
+    let nx = bz - az, nz = -(bx - ax); const l = Math.hypot(nx, nz) || 1; nx /= l; nz /= l;
+    if (nx * (ax + bx - 2 * S.cx) + nz * (az + bz - 2 * S.cz) < 0) { nx = -nx; nz = -nz; }
+    return { x: ax + (bx - ax) * t, z: az + (bz - az) * t, nx, nz };
   }
   const a = S.a0 + (S.a1 - S.a0) * t;
   return { x: S.cx + Math.cos(a) * (S.rx + d), z: S.cz + Math.sin(a) * (S.rz + d), nx: Math.cos(a), nz: Math.sin(a) };

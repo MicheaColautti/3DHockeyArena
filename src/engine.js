@@ -7,14 +7,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { TEAMS } from './teams.js?v=37';
-import { ARENAS } from './arenas.js?v=37';
-import { POSITIONS, placeholderLineup } from './lineups.js?v=37';
-import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=37';
-import { iceTexture, boardsTexture, ledTexture, suitesTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=37';
-import { lambert, disposeObject, makePlayer } from './players.js?v=37';
-import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=37';
-import { buildExterior } from './exterior.js?v=37';
+import { TEAMS } from './teams.js?v=46';
+import { ARENAS } from './arenas.js?v=46';
+import { POSITIONS, placeholderLineup } from './lineups.js?v=46';
+import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=46';
+import { iceTexture, boardsTexture, ledTexture, suitesTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=46';
+import { lambert, disposeObject, makePlayer } from './players.js?v=46';
+import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=46';
+import { buildExterior } from './exterior.js?v=46';
 
 export { RINK };
 const NEUTRALS = ['#2b2f36', '#3c4048', '#56606b', '#e6e6e6', '#1d2a44', '#5b4636', '#8a8f99', '#1a1a1a', '#6f7f8f', '#a33a3a', '#3f5f3f'];
@@ -140,7 +140,7 @@ export class ArenaView {
     this.scene.fog = mode === 'intro' ? new THREE.Fog(SKY, 200, 760) : null;
     if (mode === 'intro') this.setNight(0); else { this.night.value = 0; this.setLightLevel(1); }
     // In volo sopra l'esterno serve più precisione di profondità: piano vicino più lontano, niente sfarfallio.
-    this.camera.near = mode === 'intro' ? 2 : 0.3;
+    this.camera.near = mode === 'intro' ? 6 : 0.3;
     this.arrange(mode === 'lineup' ? 'lineup' : 'game', instant || prev === 'intro');
     this.camera.fov = 48; this.camera.clearViewOffset();
     if (mode === 'lineup') { const c = this.lineupCamera(); this.flyTo(c.pos, c.target, instant ? 0 : 1300, () => this.applyLineupFov()); if (instant) this.applyLineupFov(); }
