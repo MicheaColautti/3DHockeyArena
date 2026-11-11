@@ -7,14 +7,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { TEAMS } from './teams.js?v=115';
-import { ARENAS } from './arenas.js?v=115';
-import { POSITIONS, placeholderLineup } from './lineups.js?v=115';
-import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=115';
-import { iceTexture, boardsTexture, ledTexture, suitesTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=115';
-import { lambert, disposeObject, makePlayer } from './players.js?v=115';
-import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=115';
-import { buildExterior, octaRoof } from './exterior.js?v=115';
+import { TEAMS } from './teams.js?v=138';
+import { ARENAS } from './arenas.js?v=138';
+import { POSITIONS, placeholderLineup } from './lineups.js?v=138';
+import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=138';
+import { iceTexture, boardsTexture, ledTexture, suitesTexture, vipGlassTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=138';
+import { lambert, disposeObject, makePlayer } from './players.js?v=138';
+import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=138';
+import { buildExterior, octaRoof } from './exterior.js?v=138';
 
 export { RINK };
 const NEUTRALS = ['#2b2f36', '#3c4048', '#56606b', '#e6e6e6', '#1d2a44', '#5b4636', '#8a8f99', '#1a1a1a', '#6f7f8f', '#a33a3a', '#3f5f3f'];
@@ -681,6 +681,55 @@ export class ArenaView {
       this.cube = g; this.root.add(g);
     }
     const X = A.extras || {};
+    // Logge VIP (Zugo): vetrata continua sul muro di fondo dei rettilinei scelti (sides), sopra l'ultima fila e senza
+    // pubblico sopra; sulle curve e negli angoli la stessa fascia prosegue come balconata: soletta sporgente, parapetto di
+    // vetro con corrimano e montanti, muro scuro con porte illuminate e lampade, qualche spettatore appoggiato al parapetto.
+    // Bordo superiore unico tutto attorno (sopra l'anello più alto), così la fascia gira senza salti.
+    if (X.vipGlass) {
+      const VG = X.vipGlass, sides = VG.sides || [VG.side || 'south'], rand = seeded(A.team + 'vip');
+      const secs = sections.filter(S => !S.hang), yTop = Math.max(...secs.map(S => S.profile.top));
+      const y0 = yTop + (VG.lift ?? 2.1), y1 = Math.min(y0 + (VG.h ?? 3.2), this.roofY - 0.5);
+      const glassMat = new THREE.MeshBasicMaterial({ map: vipGlassTexture(), side: THREE.DoubleSide }), fr = new THREE.MeshBasicMaterial({ color: '#dfe3e7', side: THREE.DoubleSide });
+      const [bc, bg] = canvas(256, 64); bg.fillStyle = '#23272d'; bg.fillRect(0, 0, 256, 64);
+      for (let x = 20; x < 256; x += 64) { bg.fillStyle = '#e8c690'; bg.fillRect(x, 22, 16, 42); bg.fillStyle = '#3a3f47'; bg.fillRect(x + 36, 14, 14, 10); }
+      bg.fillStyle = TEAMS[home].primary; bg.fillRect(0, 6, 256, 3);
+      const backTex = texture(bc, true), backMat = new THREE.MeshBasicMaterial({ map: backTex, side: THREE.DoubleSide });
+      const railMat = new THREE.MeshLambertMaterial({ color: '#bcd6ea', transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false });
+      const B = new Mesher(), LP = new Mesher(), slab = color('#d9dde2'), post = color('#c9ced4'), rail = color('#eef1f4'), lampC = color('#fff4dc');
+      const shirts = ['#0d5fa4', '#ffffff', '#1d2733', '#7a8796', '#0a4c86', '#c9ccd1', '#2f3a48'], skin = ['#e8c4a4', '#d7a985', '#b98563', '#f0d2b8'];
+      for (const S of secs) {
+        const P = S.profile;
+        if (S.kind === 'straight' && sides.includes(S.key)) {
+          const g0 = P.top + (VG.low ?? 0.5);
+          this.root.add(new THREE.Mesh(stripGeometry(readable(sectionLine(S, P.depth - 0.08)), g0, y1, { uScale: VG.pane ?? 4.4 }), glassMat));
+          const lf = readable(sectionLine(S, P.depth - 0.1));
+          for (const [a, b] of [[g0 - 0.3, g0], [y1, y1 + 0.25]]) this.root.add(new THREE.Mesh(stripGeometry(lf, a, b, { uScale: 10 }), fr));
+          continue;
+        }
+        const bd = VG.balcony ?? 1.4, back = sectionLine(S, P.depth - 0.05), edge = sectionLine(S, P.depth - bd), edge2 = sectionLine(S, P.depth - bd - 0.03);
+        // Muro di fondo della balconata e soletta (piano, intradosso e bordo bianco con il filo del colore di casa).
+        this.root.add(new THREE.Mesh(stripGeometry(readable(sectionLine(S, P.depth - 0.07)), y0, y1, { uScale: 8 }), backMat));
+        for (let i = 0; i < back.length - 1; i++) {
+          for (const y of [y0, y0 - 0.35]) B.quad([back[i][0], y, back[i][1]], [back[i + 1][0], y, back[i + 1][1]], [edge[i + 1][0], y, edge[i + 1][1]], [edge[i][0], y, edge[i][1]], slab);
+          B.quad([edge[i][0], y0 - 0.35, edge[i][1]], [edge[i + 1][0], y0 - 0.35, edge[i + 1][1]], [edge[i + 1][0], y0, edge[i + 1][1]], [edge[i][0], y0, edge[i][1]], slab);
+          B.quad([edge2[i][0], y0 - 0.22, edge2[i][1]], [edge2[i + 1][0], y0 - 0.22, edge2[i + 1][1]], [edge2[i + 1][0], y0 - 0.14, edge2[i + 1][1]], [edge2[i][0], y0 - 0.14, edge2[i][1]], color(TEAMS[home].primary));
+        }
+        // Parapetto di vetro, corrimano, montanti; lampade sul muro; spettatori appoggiati al parapetto.
+        const rl = sectionLine(S, P.depth - bd + 0.05);
+        this.root.add(new THREE.Mesh(stripGeometry(rl, y0, y0 + 1.0, { uScale: 4 }), railMat));
+        for (let i = 0; i < rl.length - 1; i++) B.beam([rl[i][0], y0 + 1.05, rl[i][1]], [rl[i + 1][0], y0 + 1.05, rl[i + 1][1]], 0.08, rail);
+        for (const q of samplePolyline(rl, 2.4, rand, 0)) B.box(q.x, y0 + 0.52, q.z, 0.07, 1.04, 0.07, post);
+        for (const q of samplePolyline(back, 6.5, rand, 0.4)) LP.box(q.x - q.nx * 0.08, y1 - 0.6, q.z - q.nz * 0.08, 0.5, 0.18, 0.5, lampC);
+        for (const q of samplePolyline(sectionLine(S, P.depth - bd + 0.45), 1.1, rand, 0.6)) {
+          if (rand() > (VG.people ?? 0.35)) continue;
+          const ry = Math.atan2(q.nx, q.nz), hgt = 1.0 + rand() * 0.15, k = color(shirts[(rand() * shirts.length) | 0]);
+          B.box(q.x, y0 + 0.45, q.z, 0.36, 0.9, 0.24, color('#2a2d33'), ry); B.box(q.x, y0 + 0.9 + hgt / 2 - 0.45, q.z, 0.46, hgt * 0.62, 0.28, k, ry);
+          B.box(q.x, y0 + 1.6 + (hgt - 1) * 0.6, q.z, 0.24, 0.26, 0.24, color(skin[(rand() * skin.length) | 0]), ry);
+        }
+      }
+      this.root.add(B.mesh());
+      if (!LP.empty) { const lm = LP.mesh(); lm.material = new THREE.MeshBasicMaterial({ vertexColors: true }); this.root.add(lm); }
+    }
     // Anello sospeso sotto le travi (Friburgo): fascia scura con il bordo inferiore luminoso.
     // Cabine vetrate negli angoli (Friburgo): sul corridoio tra i due anelli dei cunei, vetro azzurrino con il telaio chiaro.
     if (X.cornerBoxes) for (const S of sections) {
@@ -946,7 +995,9 @@ export class ArenaView {
     const c = this.camera.position, E = this.extent, inside = Math.abs(c.x) < E.EX && c.z > -E.EZn && c.z < E.EZs;
     if (this.ceiling) this.ceiling.visible = inside && c.y < this.roofY + (this.archRise || 0) - 0.3;
     // Nell'intro si vede solo l'esterno: l'interno (più alto dell'involucro in alcune arene) ricompare quando si entra.
-    const outsideOnly = this.mode === 'intro' && !this.intro.entering;
+    // Durante il volo d'ingresso l'interno compare solo quando la telecamera è scesa sotto il tetto esterno (quando il tetto
+    // sparisce): prima le file più alte del pubblico sbucherebbero attraverso le coperture.
+    const outsideOnly = this.mode === 'intro' && (!this.intro.entering || c.y > (this.outsideTop ?? 0) + 4);
     if (this.root) for (const ch of this.root.children) if (ch !== this.outside && !ch.isLight) ch.visible = !outsideOnly;
     if (this.awayLayer) this.awayLayer.visible = !outsideOnly;
     if (this.outsideRoof) this.outsideRoof.visible = !(this.intro.entering && c.y < (this.outsideTop ?? 0) + 4);

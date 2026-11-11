@@ -1,7 +1,7 @@
 // Texture disegnate su canvas (ghiaccio, LED, striscioni, bandiere, maglie) e materiali animati.
 import * as THREE from 'three';
-import { TEAMS } from './teams.js?v=115';
-import { RINK, FONT, seeded, lum, canvas, texture, drawLogo, fitText } from './common.js?v=115';
+import { TEAMS } from './teams.js?v=138';
+import { RINK, FONT, seeded, lum, canvas, texture, drawLogo, fitText } from './common.js?v=138';
 
 /* ---------- texture ---------- */
 
@@ -65,6 +65,20 @@ export function suitesTexture() {
   const W = 512, H = 64, [c, g] = canvas(W, H), rand = seeded(9);
   g.fillStyle = '#10141a'; g.fillRect(0, 0, W, H);
   for (let x = 0; x < W; x += 32) { const lit = rand() < 0.7; g.fillStyle = lit ? `rgba(255,${200 + rand() * 40 | 0},${140 + rand() * 50 | 0},${0.55 + rand() * 0.35})` : 'rgba(80,100,120,.35)'; g.fillRect(x + 3, 6, 26, H - 12); }
+  return texture(c, true);
+}
+
+// Vetrata delle logge VIP: lastre alte con montanti chiari, riflesso freddo in alto e luce calda delle sale dietro,
+// con qualche ospite in controluce.
+export function vipGlassTexture() {
+  const W = 256, H = 128, [c, g] = canvas(W, H), rand = seeded(17);
+  for (let x = 0; x < W; x += 64) {
+    const warm = g.createLinearGradient(0, 0, 0, H); warm.addColorStop(0, '#3a4a58'); warm.addColorStop(0.45, '#6d6450'); warm.addColorStop(1, rand() < 0.75 ? '#d8b47a' : '#8f8a7c');
+    g.fillStyle = warm; g.fillRect(x, 0, 64, H);
+    g.fillStyle = 'rgba(200,220,235,.18)'; g.beginPath(); g.moveTo(x, 0); g.lineTo(x + 40, 0); g.lineTo(x, 50); g.fill();
+    for (let k = 0; k < 3; k++) if (rand() < 0.6) { const px = x + 8 + rand() * 46, ph = 26 + rand() * 10; g.fillStyle = 'rgba(30,28,26,.75)'; g.fillRect(px, H - ph, 7, ph); g.beginPath(); g.arc(px + 3.5, H - ph - 4, 4, 0, Math.PI * 2); g.fill(); }
+  }
+  g.fillStyle = '#d6dbe0'; for (let x = 0; x < W; x += 64) g.fillRect(x, 0, 4, H); g.fillRect(0, 0, W, 4); g.fillRect(0, H - 6, W, 6);
   return texture(c, true);
 }
 

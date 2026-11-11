@@ -441,23 +441,37 @@ export const ARENAS = {
     note: 'Volume basso color bronzo sotto una grande copertura sporgente che si alza a punta sopra l\'ingresso, accanto alla torre stretta e altissima. Dentro, sedili blu su due anelli; ospiti in piedi nei settori 127–128.',
     facts: ['Copertura sporgente sopra l\'ingresso', 'Stehplatz Heim 110–119 che avvolge gli angoli', 'Stehplatz Gäste 127–128', 'Accanto alla Park Tower'],
     gaps: { side: 2.4, bench: 4.4, end: 3 },
+    // Due anelli distinti su tutti i lati, con il LED che corre senza interruzioni attorno alla pista (curve comprese):
+    // il primo anello ha la stessa sezione ovunque, così fascia e corridoio combaciano negli angoli. Curva di casa
+    // (110–119, a est) in piedi su entrambi gli anelli e negli angoli; ospiti in piedi a ovest (127–128, metà nord e angolo).
     stands: {
       north: { base: 1.3, tiers: [seated(14, 0.45, 0.82), upper(8, 0.52, 0.8, 'led', { depth: 1.8, rise: 2.8 })] },
-      south: { base: 1.3, tiers: [seated(14, 0.45, 0.82), suites(3)] },
-      west: { base: 2.4, tiers: [standing(16, 0.4, 0.55), upper(6, 0.52, 0.8, 'led', { depth: 1.8, rise: 2.8 })] },
-      east: { base: 2.2, tiers: [seated(10, 0.45, 0.82), upper(6, 0.52, 0.8, 'led', { depth: 1.8, rise: 2.8 })] },
+      south: { base: 1.3, tiers: [seated(14, 0.45, 0.82), upper(5, 0.52, 0.8, 'led', { depth: 1.8, rise: 2.8 })] },
+      west: { base: 1.3, tiers: [seated(14, 0.45, 0.82), upper(7, 0.52, 0.8, 'led', { depth: 1.8, rise: 2.8 })] },
+      east: { base: 1.3, tiers: [standing(14, 0.45, 0.82), { ...upper(7, 0.52, 0.8, 'led', { depth: 1.8, rise: 2.8 }), standing: true }] },
     },
-    corners: { west: 'end', east: 'side' },
-    home: { side: 'west', tier: 0 },
-    guest: { side: 'east', from: 0.18, to: 0.46, tier: 0, standing: true },
+    corners: { west: 'side', east: 'end' },
+    home: { side: 'east' },
+    guest: { side: 'west', from: 0, to: 0.5, tier: 0, standing: true, corner: 'north', cornerTo: 0.6 },
+    // Logge VIP: vetrate sopra il secondo anello sui due rettilinei; sulle curve e negli angoli la fascia prosegue come balconata.
+    extras: { vipGlass: { sides: ['south', 'north'], h: 3.2, balcony: 1.4, people: 0.35 } },
     led: { boards: true, rim: false },
     roof: { type: 'truss', clear: 6.5, color: '#20242b', steel: '#5d636b' },
     cube: { w: 6.4, h: 3.8 },
     style: { concrete: '#a0a4aa', riser: '#868a90', wall: '#2c3036', floor: '#282a2e', seats: ['#0d5fa4', '#0a4c86'], seatPattern: 'blocks' },
     light: { tint: '#ffffff', ambient: 1.1, key: 1.05 },
-    exterior: { shape: 'rect', wall: '#6b5238', facade: 'bronze', uScale: 24, roof: 'canopy', canopy: { out: { south: 8, west: 5, east: 3, north: 1 }, lift: 9, thick: 1.6 }, roofColor: '#d3d6d9', ground: 'urban', trees: 60, conifers: false, mountains: 12,
-      features: [{ type: 'walkers', side: 'north', dist: 2, w: 10, len: 90, n: 25 }, { type: 'walkers', side: 'south', dist: 2, w: 10, len: 90, n: 40 }, { type: 'tower', side: 'west', dist: 8, w: 28, d: 26, h: 81, lean: 7, leanDir: -1 }, { type: 'parking', side: 'south', dist: 14, w: 36, len: 90, cars: 40 }, { type: 'hall', side: 'east', dist: 30, w: 34, len: 50, h: 12, color: '#cfd2d6' },
-        { type: 'river', side: 'north', dist: 240, w: 400 }, { type: 'city', side: 'west', dist: 50, n: 36, height: 24 }, { type: 'city', side: 'south', dist: 60, n: 36, height: 20 }, { type: 'slope', side: 'east', dist: 220, angle: 0.3, depth: 300, trees: 300, conifers: false, houses: 30 }] },
+    // Esterno dalle foto: sala bassa color bronzo (piano terra vetrato, nastro di finestre in alto) sotto una lastra
+    // bianca che sporge molto a ovest sul piazzale; a nord la Park Tower, con la faccia inclinata in cui il tetto sale in curva.
+    // crease: piede della faccia (frazione dello sbalzo), curve: raggio della curva che sale nella faccia, fade: dove si spegne
+    // verso sud, slope: pendenza della tettoia verso ovest, extIn: corpo sotto la tettoia.
+    // Sotto lo sbalzo la pista all'aperto; di sera l'intradosso viola. Città, il lago di Zugo e le colline.
+    exterior: { shape: 'rect', wall: '#7a5d3e', signColor: '#ffffff', roofColor: '#e4e6e8', ground: 'urban', trees: 70, conifers: false, mountains: 12,
+      zug: { h: 18, over: 42, crease: 0.5, curve: 18, fade: 26, slope: 0.13, extIn: 15, towerW: 34, towerD: 28, towerH: 81, lean: 12, towerTint: '#8b6a49', glow: '#9d84ff', rink: { len: 30, w: 20, dz: 2 } },
+      features: [{ type: 'walkers', side: 'north', dist: 2, w: 10, len: 90, n: 25 }, { type: 'walkers', side: 'south', dist: 2, w: 12, len: 120, n: 45 }, { type: 'walkers', side: 'west', dist: -36, w: 20, len: 50, n: 30, offset: 20 },
+        { type: 'road', side: 'south', dist: 26 }, { type: 'road', side: 'east', dist: 12 }, { type: 'road', side: 'north', dist: 16 },
+        { type: 'parking', side: 'east', dist: 30, w: 36, len: 70, cars: 40 }, { type: 'hall', side: 'north', dist: 30, w: 30, len: 60, h: 12, color: '#cfd2d6', offset: 40 },
+        { type: 'river', side: 'north', dist: 260, w: 500 }, { type: 'city', side: 'west', dist: 30, depth: 220, grid: 32, height: 22, spread: 260 }, { type: 'city', side: 'south', dist: 44, depth: 200, grid: 32, height: 20, spread: 300 },
+        { type: 'city', side: 'north', dist: 56, depth: 180, grid: 34, height: 18, spread: 240 }, { type: 'slope', side: 'east', dist: 160, angle: 0.3, depth: 300, trees: 300, conifers: false, houses: 30 }] },
   },
 };
 
