@@ -1,7 +1,7 @@
 // Texture disegnate su canvas (ghiaccio, LED, striscioni, bandiere, maglie) e materiali animati.
 import * as THREE from 'three';
-import { TEAMS } from './teams.js?v=168';
-import { RINK, FONT, seeded, lum, canvas, texture, drawLogo, fitText } from './common.js?v=168';
+import { TEAMS } from './teams.js?v=173';
+import { RINK, FONT, seeded, lum, canvas, texture, drawLogo, fitText } from './common.js?v=173';
 
 /* ---------- texture ---------- */
 
@@ -81,6 +81,27 @@ export function sloganWallTexture(left, right, aspect = 3, band = null) {
   // Fascia blu in cima con la scritta della curva (bianca, bordo rosso), come lo striscione del Kloten.
   if (band) { const bh = H * 0.24; g.fillStyle = '#1d2f6e'; g.fillRect(0, 0, W, bh); g.fillStyle = '#c8202c'; g.fillRect(0, bh - 4, W, 4);
     g.font = `900 ${Math.round(bh * 0.7)}px 'Courier New', monospace`; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = '#c8202c'; g.strokeText(band, W / 2, bh / 2); g.fillStyle = '#f4f4f2'; g.fillText(band, W / 2, bh / 2); }
+  return texture(c);
+}
+
+// Faccia di una torre d'angolo in cemento (Porrentruy): cemento a casseri con le aperture sovrapposte, scure dentro, con
+// il soffitto di legno, il parapetto di legno chiaro, il corrimano e qualcuno affacciato.
+export function cornerTowerTexture(levels = 3) {
+  const W = 256, H = 512, [c, g] = canvas(W, H), rand = seeded('corner-tower' + levels);
+  g.fillStyle = '#b4b4af'; g.fillRect(0, 0, W, H);
+  g.strokeStyle = 'rgba(90,90,85,.25)'; g.lineWidth = 1; for (let y = 0; y < H; y += 32) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); } for (let x = 0; x < W; x += 64) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
+  for (let i = 0; i < 40; i++) { g.fillStyle = 'rgba(60,60,55,.35)'; g.fillRect(rand() * W, rand() * H, 2, 2); }
+  const top = 0.08, bottom = 0.78, lh = (bottom - top) / levels;
+  for (let k = 0; k < levels; k++) {
+    const y0 = H * (top + k * lh) + 10, oh = H * lh - 22, x0 = W * 0.1, ow = W * 0.8;
+    g.fillStyle = '#1f2024'; g.fillRect(x0, y0, ow, oh);
+    g.fillStyle = '#c9a777'; g.fillRect(x0, y0, ow, oh * 0.12);
+    g.fillStyle = 'rgba(255,214,150,.55)'; for (let x = x0 + 14; x < x0 + ow - 10; x += 34) g.fillRect(x, y0 + oh * 0.12, 10, 4);
+    for (let i = 0; i < 4; i++) if (rand() < 0.7) { const px = x0 + 16 + rand() * (ow - 32); g.fillStyle = '#3a3c42'; g.fillRect(px, y0 + oh * 0.42, 12, oh * 0.3); g.beginPath(); g.arc(px + 6, y0 + oh * 0.38, 6, 0, Math.PI * 2); g.fillStyle = '#d7a985'; g.fill(); }
+    g.fillStyle = '#ddc394'; g.fillRect(x0, y0 + oh * 0.66, ow, oh * 0.34);
+    g.fillStyle = 'rgba(120,90,50,.35)'; for (let x = x0; x < x0 + ow; x += 10) g.fillRect(x, y0 + oh * 0.66, 1, oh * 0.34);
+    g.fillStyle = '#d9dcdf'; g.fillRect(x0, y0 + oh * 0.6, ow, 3);
+  }
   return texture(c);
 }
 

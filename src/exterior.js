@@ -4,8 +4,8 @@
 // finisce nella lista `night` restituita, e la vista ne regola l'intensità durante il tramonto.
 
 import * as THREE from 'three';
-import { TEAMS } from './teams.js?v=168';
-import { seeded, color, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect } from './common.js?v=168';
+import { TEAMS } from './teams.js?v=173';
+import { seeded, color, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect } from './common.js?v=173';
 
 const pick3 = (rand, list) => list[Math.floor(rand() * list.length)];
 const GROUND = { urban: '#8e8f88', alpine: '#6f8a55', grass: '#79925a', snow: '#e6ebf0' };
@@ -1549,6 +1549,14 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
       // Auto in file ordinate, una per stallo, senza sovrapposizioni.
       { const L = p.along === 'x' ? p.lx : p.lz, Wd = p.along === 'x' ? p.lz : p.lx, slots = [];
         for (let r = -Wd / 2 + 3.5; r <= Wd / 2 - 3.5; r += Wd < 14 ? 99 : 7.5) for (let u = -L / 2 + 3; u <= L / 2 - 3; u += 3) slots.push([u, Wd < 14 ? 0 : r]);
+        // islands: aiuole di terra con alberelli giovani lungo il parcheggio; niente auto sopra.
+        if (f.islands) for (let u = -L / 2 + 10; u < L / 2 - 6; u += 20) {
+          const bx = p.along === 'x' ? p.cx + u : p.cx, bz = p.along === 'x' ? p.cz : p.cz + u;
+          M.box(bx, 0.12, bz, p.along === 'x' ? 9 : 3.2, 0.16, p.along === 'x' ? 3.2 : 9, color('#7a5a3c'));
+          M.box(bx, 0.2, bz, p.along === 'x' ? 9.2 : 3.4, 0.04, p.along === 'x' ? 3.4 : 9.2, color('#bdbcb6'));
+          for (const o of [-2.5, 2.5]) extraTrees.push([p.along === 'x' ? bx + o : bx, p.along === 'x' ? bz : bz + o, 4.5 + rand() * 1.5, 0, false]);
+          for (let i = slots.length - 1; i >= 0; i--) if (Math.abs(slots[i][0] - u) < 6 && Math.abs(slots[i][1]) < 3.5) slots.splice(i, 1);
+        }
         const want = Math.min(f.cars ?? 40, Math.floor(slots.length * 0.6));
         for (let i = 0; i < want && slots.length; i++) { const [u, r] = slots.splice(Math.floor(rand() * slots.length), 1)[0]; cars.push(p.along === 'x' ? [p.cx + u, p.cz + r, 'z'] : [p.cx + r, p.cz + u, 'x']); } }
       for (let a = -p.lx / 2 + 8; a < p.lx / 2; a += 22) for (let b = -p.lz / 2 + 8; b < p.lz / 2; b += 22) { M.box(p.cx + a, 5, p.cz + b, 0.25, 10, 0.25, color('#8b8e93')); lampAt(p.cx + a, p.cz + b, 10, '#f4f1ff'); }
@@ -1600,6 +1608,16 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
       occupy(p.cx - p.lx / 2 - 4, p.cx + p.lx / 2 + 4, p.cz - p.lz / 2 - 4, p.cz + p.lz / 2 + 4);
     } else if (f.type === 'hall' || f.type === 'rink2' || f.type === 'garage') {
       const p = place(f, f.w ?? 40, f.len ?? 60), h = f.h ?? (f.type === 'garage' ? 9 : 12), k = color(f.color || (f.type === 'garage' ? '#9a9c9f' : '#d9dadc'));
+      // facade: corpo con la stessa pelle dell'arena (Porrentruy: la sala d'allenamento a doghe), zoccolo scuro e tetto piano.
+      if (f.facade) {
+        const R2 = [[p.cx - p.lx / 2, p.cz - p.lz / 2], [p.cx + p.lx / 2, p.cz - p.lz / 2], [p.cx + p.lx / 2, p.cz + p.lz / 2], [p.cx - p.lx / 2, p.cz + p.lz / 2]];
+        group.add(new THREE.Mesh(stripGeometry(R2, 0.8, h, { closed: true, uScale }), facMat));
+        group.add(new THREE.Mesh(stripGeometry(R2.map(([x, z]) => [x + Math.sign(x - p.cx) * 0.06, z + Math.sign(z - p.cz) * 0.06]), 0, 0.8, { closed: true }), new THREE.MeshLambertMaterial({ color: '#3a3c40', side: THREE.DoubleSide })));
+        M.box(p.cx, h - 0.05, p.cz, p.lx - 0.1, 0.1, p.lz - 0.1, color(f.top || '#4a4d52'));
+        for (let i = 0; i < 4; i++) M.box(p.cx - p.lx / 2 + 8 + i * (p.lx - 16) / 3, h + 0.6, p.cz + (i % 2 ? 4 : -4), 3, 1.2, 2.4, color('#8f9398'));
+        occupy(p.cx - p.lx / 2, p.cx + p.lx / 2, p.cz - p.lz / 2, p.cz + p.lz / 2);
+        continue;
+      }
       M.box(p.cx, h / 2, p.cz, p.lx, h, p.lz, k);
       if (f.roof === 'gable') {
         const r = f.rise ?? 4, rc = color(f.solar ? '#2c3a52' : f.roofColor || '#7e8288'), lx2 = p.lx / 2, lz2 = p.lz / 2;
@@ -1608,6 +1626,19 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
       } else if (f.top) M.box(p.cx, h + 0.1, p.cz, p.lx - 1, 0.2, p.lz - 1, color(f.top));
       if (f.type !== 'garage') buildingWindows(p.cx, p.cz, p.lx, p.lz, h, 0, 0.3);
       occupy(p.cx - p.lx / 2, p.cx + p.lx / 2, p.cz - p.lz / 2, p.cz + p.lz / 2);
+    } else if (f.type === 'castle') {
+      // Collina con il castello in cima (Porrentruy): poggio erboso, corpo lungo con tetto a falde, torre tonda e torretta.
+      const p = place(f, 200, 200), hh = f.h ?? 30, CM = new Mesher();
+      const hill = new THREE.Mesh(new THREE.CylinderGeometry(55, 115, hh, 28, 1), new THREE.MeshLambertMaterial({ color: '#6f8f4f', flatShading: true })); hill.position.set(p.cx, hh / 2 - 0.5, p.cz); group.add(hill);
+      const wall = color('#ddd6c6'), rc = color('#6a5446'), y0 = hh;
+      CM.box(p.cx, y0 + 7, p.cz, 46, 14, 14, wall); CM.quad([p.cx - 23, y0 + 14, p.cz - 7], [p.cx + 23, y0 + 14, p.cz - 7], [p.cx + 23, y0 + 20, p.cz], [p.cx - 23, y0 + 20, p.cz], rc); CM.quad([p.cx + 23, y0 + 14, p.cz + 7], [p.cx - 23, y0 + 14, p.cz + 7], [p.cx - 23, y0 + 20, p.cz], [p.cx + 23, y0 + 20, p.cz], rc.clone().multiplyScalar(0.85));
+      CM.box(p.cx - 30, y0 + 5, p.cz + 10, 16, 10, 12, wall); CM.box(p.cx + 14, y0 + 1, p.cz + 14, 40, 2, 3, wall);
+      group.add(CM.mesh());
+      const tw = new THREE.Mesh(new THREE.CylinderGeometry(5.5, 6, 34, 18), new THREE.MeshLambertMaterial({ color: '#e2dccd' })); tw.position.set(p.cx + 30, y0 + 17, p.cz - 2); group.add(tw);
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(6.4, 7, 18), new THREE.MeshLambertMaterial({ color: '#5d4a3e' })); cap.position.set(p.cx + 30, y0 + 37.5, p.cz - 2); group.add(cap);
+      for (let i = 0; i < 8; i++) windows.push({ x: p.cx - 18 + i * 5, y: y0 + 8, z: p.cz - 7.3, c: '#ffd9a0', s: 1.4 });
+      for (let i = 0; i < 40; i++) { const a = rand() * Math.PI * 2, r = 70 + rand() * 40; extraTrees.push([p.cx + Math.cos(a) * r, p.cz + Math.sin(a) * r, 8 + rand() * 6, Math.max(0, hh * (1 - (r - 55) / 60)) - 0.5, false]); }
+      occupy(p.cx - 115, p.cx + 115, p.cz - 115, p.cz + 115);
     } else if (f.type === 'tower') {
       // Torre alta e stretta con finestre a nastro, che si allarga verso l'alto (Zugo, Park Tower).
       const w = f.w ?? 26, d = f.d ?? 24, h = f.h ?? 80, p = place(f, w, d), geo = new THREE.BoxGeometry(p.lx, h, p.lz), pos = geo.attributes.position;
@@ -1694,6 +1725,8 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
       const pt = (u, v) => { const out = d0 + v * depth, yy = Math.max(0, (v * depth)) * Math.tan(angle) * (0.85 + 0.15 * Math.sin(u * 9)), s = (u - 0.5) * width; if (f.side === 'north') return [s, yy, Z0 - out]; if (f.side === 'south') return [s, yy, Z1 + out]; if (f.side === 'west') return [X0 - out, yy, s]; return [X1 + out, yy, s]; };
       for (let i = 0; i < N; i++) for (let j = 0; j < 8; j++) S.quad(pt(i / N, j / 8), pt((i + 1) / N, j / 8), pt((i + 1) / N, (j + 1) / 8), pt(i / N, (j + 1) / 8), green.clone().multiplyScalar(0.9 + ((i + j) % 2) * 0.08));
       group.add(S.mesh({ flatShading: true }));
+      // clear: niente città né bosco generico sopra il versante (Porrentruy: i palazzi non entrano nella collina).
+      if (f.clear) { const a0 = pt(0, 0), a1 = pt(1, 1); occupy(a0[0], a1[0], a0[2], a1[2]); }
       for (let i = 0; i < (f.trees ?? 500); i++) { const u = rand(), v = 0.02 + rand() * 0.98, q = pt(u, v); treeSpots.push([q[0], q[2], 8 + rand() * 10, q[1], f.conifers ?? true]); }
       if (f.houses) for (let i = 0; i < f.houses; i++) { const q = pt(rand(), 0.15 + rand() * 0.5); M.box(q[0], q[1] + 3, q[2], 8, 6, 7, color('#d8d0c2')); windows.push({ x: q[0], y: q[1] + 3, z: q[2], c: '#ffcf8a', s: 1.6 }); }
     } else if (f.type === 'city' || f.type === 'gardens') {

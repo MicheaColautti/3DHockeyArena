@@ -106,23 +106,37 @@ export const ARENAS = {
     facts: ['Struttura in legno: capriate a triangoli', 'Kop giallonero dietro la porta', 'Ospiti nell\'angolo della curva opposta', 'Aperta nel 2020'],
     gaps: { side: 2, bench: 4.2, end: 3 },
     stands: {
-      north: { base: 1.2, tiers: [seated(12, 0.44, 0.8)] },
-      south: { base: 1.2, tiers: [seated(12, 0.44, 0.8)] },
-      west: { base: 2.3, tiers: [standing(15, 0.38, 0.55), upper(4, 0.46, 0.8, 'plain', { depth: 1.2, rise: 1.8 })] },
-      east: { base: 2, tiers: [seated(9, 0.44, 0.8)] },
+      // Lato lungo opposto alle panchine: un muro lungo e alto di tribune. Lato delle panchine: poche file a bordo pista,
+      // con i tifosi dell'Ajoie in piedi accanto alla loro panchina (a ovest) e gli ospiti accanto alla panchina ospite (a est).
+      north: { base: 1.2, tiers: [seated(19, 0.5, 0.8)] },
+      south: { base: 1.1, tiers: [seated(6, 0.4, 0.8)] },
+      // Testata ovest: la curva lunga e dritta in piedi (angoli aperti) e sopra, arretrata, una balconata con due file a sedere.
+      west: { base: 2.2, tiers: [standing(16, 0.38, 0.55), upper(3, 0.5, 0.8, 'plain', { depth: 2.4, rise: 3.2 })] },
+      // Testata est: in verticale prima due balconi aperti (due file ciascuno) e in cima le logge VIP vetrate, sul corridoio.
+      east: { base: 1.2, tiers: [seated(3, 0.45, 0.8), upper(2, 0.45, 0.8, 'plain', { depth: 0.6, rise: 2.6 }), upper(2, 0.45, 0.8, 'plain', { depth: 0.6, rise: 2.6 }), deck(1.6)] },
     },
-    corners: true,
+    corners: false,
     home: { side: 'west', tier: 0 },
-    guest: { side: 'east', from: 0.62, to: 1, corner: 'south' },
+    standing: [{ side: 'south', from: 0, to: 0.24, tier: 0, force: true, curve: true }],
+    guest: { side: 'south', from: 0.76, to: 1, tier: 0, standing: true, glass: true },
     led: { boards: true, rim: false },
     roof: { type: 'wood-truss', clear: 6, color: '#d9b483', steel: '#c4945a' },
     cube: { w: 4.6, h: 2.8 },
     style: { concrete: '#9a9da2', riser: '#7f8287', wall: '#e3ddd0', floor: '#2b2d31', seats: ['#2a2a2a', '#f0b400', '#2a2a2a'], seatPattern: 'blocks' },
     light: { tint: '#ffffff', ambient: 1.15, key: 1 },
-    extras: { timberWalls: true },
-    exterior: { shape: 'rect', wall: '#8f9296', facade: 'hslats', accent: '#f2c200', uScale: 20, roof: 'flat', roofMat: 'solar', ground: 'grass', trees: 90, conifers: false,
-      features: [{ type: 'walkers', side: 'north', dist: 2, w: 10, len: 80, n: 25 }, { type: 'walkers', side: 'south', dist: 1, w: 10, len: 80, n: 35 }, { type: 'road', side: 'south', dist: 12 }, { type: 'hall', side: 'east', dist: 0, w: 28, len: 44, h: 8, color: '#8f9296', top: '#b9bcbf' }, { type: 'parking', side: 'west', dist: 8, w: 40, len: 60, cars: 40 },
-        { type: 'rail', side: 'north', dist: 30, tracks: 2 }, { type: 'city', side: 'north', dist: 70, n: 34, height: 10 }, { type: 'city', side: 'west', dist: 60, n: 20, height: 9 }, { type: 'slope', side: 'south', dist: 120, angle: 0.18, depth: 300, trees: 250, conifers: false, houses: 10 }] },
+    // Negli angoli aperti: quattro torri di cemento con le aperture sovrapposte (parapetti in legno) che guardano la pista.
+    extras: { timberWalls: true, cornerTowers: { levels: 3 }, vipGlass: { sides: ['east'], behind: true, balconies: false, h: 4, low: 0.3 } },
+    // Esterno dalle foto: prisma a doghe grigie con il tetto di pannelli e, a filo del fronte sulla strada, la sala
+    // d'allenamento più bassa con la stessa pelle. Davanti la strada con i lampioni e, oltre, la scarpata erbosa; parcheggio
+    // con le aiuole e gli alberelli; dietro la collina boscosa, la ferrovia, campi a riquadri, la città e il castello sul poggio.
+    exterior: { shape: 'rect', wall: '#8f9296', facade: 'hslats', accent: '#f2c200', uScale: 20, roof: 'flat', roofMat: 'solar', ground: 'grass', meadows: { r: 680, cell: 46 }, trees: 60, conifers: false,
+      features: [{ type: 'walkers', side: 'north', dist: 2, w: 8, len: 80, n: 20 }, { type: 'walkers', side: 'south', dist: 1, w: 8, len: 100, n: 40 },
+        { type: 'road', side: 'south', dist: 10, len: 2600, traffic: true }, { type: 'slope', side: 'south', dist: 22, angle: 0.3, depth: 28, width: 900, trees: 0, color: '#6f9a4a', clear: true },
+        { type: 'hall', side: 'west', dist: 0, w: 62, len: 44, h: 11, offset: 8.4, facade: true, top: '#4a4d52' },
+        { type: 'parking', side: 'west', dist: 70, w: 40, len: 64, cars: 36, islands: true, offset: 6 }, { type: 'parking', side: 'east', dist: 12, w: 30, len: 50, cars: 20, islands: true },
+        { type: 'rail', side: 'north', dist: 34, tracks: 2, len: 2600 }, { type: 'slope', side: 'north', dist: 60, angle: 0.3, depth: 260, trees: 700, conifers: false, clear: true },
+        { type: 'city', side: 'west', dist: 130, depth: 220, grid: 30, n: 40, height: 11, spread: 300 }, { type: 'castle', side: 'west', dist: 340, offset: -90, h: 30 },
+        { type: 'city', side: 'east', dist: 170, depth: 160, grid: 32, n: 20, height: 9, spread: 260 }] },
   },
   SCB: {
     team: 'SCB', name: 'PostFinance Arena', city: 'Berna', capacity: 17031, opened: 1967,

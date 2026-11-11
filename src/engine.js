@@ -7,14 +7,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { TEAMS } from './teams.js?v=168';
-import { ARENAS } from './arenas.js?v=168';
-import { POSITIONS, placeholderLineup } from './lineups.js?v=168';
-import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=168';
-import { iceTexture, boardsTexture, ledTexture, suitesTexture, vipGlassTexture, sloganWallTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=168';
-import { lambert, disposeObject, makePlayer } from './players.js?v=168';
-import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=168';
-import { buildExterior, octaRoof } from './exterior.js?v=168';
+import { TEAMS } from './teams.js?v=173';
+import { ARENAS } from './arenas.js?v=173';
+import { POSITIONS, placeholderLineup } from './lineups.js?v=173';
+import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=173';
+import { iceTexture, boardsTexture, ledTexture, suitesTexture, vipGlassTexture, sloganWallTexture, cornerTowerTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=173';
+import { lambert, disposeObject, makePlayer } from './players.js?v=173';
+import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=173';
+import { buildExterior, octaRoof } from './exterior.js?v=173';
 
 export { RINK };
 const NEUTRALS = ['#2b2f36', '#3c4048', '#56606b', '#e6e6e6', '#1d2a44', '#5b4636', '#8a8f99', '#1a1a1a', '#6f7f8f', '#a33a3a', '#3f5f3f'];
@@ -788,6 +788,19 @@ export class ArenaView {
       }
       this.root.add(B.mesh());
       if (!LP.empty) { const lm = LP.mesh(); lm.material = new THREE.MeshBasicMaterial({ vertexColors: true }); this.root.add(lm); }
+    }
+    // Torri d'angolo (Porrentruy): con gli angoli aperti, ogni quadrato vuoto tra testata e lato lungo è una torre di
+    // cemento fino al tetto, con le aperture sovrapposte rivolte verso la pista sulle due facce interne.
+    if (X.cornerTowers && !A.corners) {
+      const CT = X.cornerTowers, { ex, zn, zs, profiles: PR } = this.layout, top = this.roofY - 0.2, mat = new THREE.MeshLambertMaterial({ map: cornerTowerTexture(CT.levels ?? 3), side: THREE.DoubleSide });
+      const conc = new THREE.MeshLambertMaterial({ color: '#a9a9a4', side: THREE.DoubleSide }), o = 0.12;
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+        const De = PR[sx < 0 ? 'west' : 'east'].depth, Ds = PR[sz < 0 ? 'north' : 'south'].depth, zf = sz < 0 ? zn : zs;
+        const xi = sx * (ex + o), xo = sx * (ex + De), zi = sz * (zf + o), zo = sz * (zf + Ds);
+        this.root.add(new THREE.Mesh(stripGeometry([[xi, zo], [xi, zi]], 0, top, { uScale: Math.abs(zo - zi) }), mat));
+        this.root.add(new THREE.Mesh(stripGeometry([[xi, zi], [xo, zi]], 0, top, { uScale: Math.abs(xo - xi) }), mat));
+        const cap = new THREE.Mesh(new THREE.PlaneGeometry(Math.abs(xo - xi), Math.abs(zo - zi)), conc); cap.rotation.x = -Math.PI / 2; cap.position.set((xi + xo) / 2, top, (zi + zo) / 2); this.root.add(cap);
+      }
     }
     // Anello sospeso sotto le travi (Friburgo): fascia scura con il bordo inferiore luminoso.
     // Cabine vetrate negli angoli (Friburgo): sul corridoio tra i due anelli dei cunei, vetro azzurrino con il telaio chiaro.

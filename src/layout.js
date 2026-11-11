@@ -2,7 +2,7 @@
 // Convenzione: x lungo la pista, z in larghezza. Nord = z < 0 (lato lontano dalla telecamera), sud = z > 0 (panchine).
 // Ovest = x < 0, est = x > 0. Lungo una sezione t va da 0 a 1: da ovest a est sui lati lunghi, da nord a sud sui lati corti.
 
-import { RINK } from './common.js?v=168';
+import { RINK } from './common.js?v=173';
 
 export const SIDES = ['north', 'south', 'west', 'east'];
 
@@ -205,7 +205,8 @@ export function inZone(S, t, R, z) {
 export function zoneAt(A, S, t, R) {
   if (inZone(S, t, R, A.guest)) return 'guest';
   if (inZone(S, t, R, A.home) || (S.kind === 'arc' && S.wrap && A.home?.side === S.end && (A.home.tier == null || A.home.tier === R.tier))) return R.standing || A.home?.seatedCurve ? 'curve' : 'side';
-  for (const z of A.standing || []) if (inZone(S, t, R, z) && R.standing) return 'standing';
+  // standing[].force: settore in piedi anche dentro una tribuna a sedere; .curve: tifosi di casa che saltano (come la curva).
+  for (const z of A.standing || []) if (inZone(S, t, R, z) && (R.standing || z.force)) return z.curve ? 'curve' : 'standing';
   return 'side';
 }
 
