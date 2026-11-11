@@ -2,7 +2,7 @@
 // Convenzione: x lungo la pista, z in larghezza. Nord = z < 0 (lato lontano dalla telecamera), sud = z > 0 (panchine).
 // Ovest = x < 0, est = x > 0. Lungo una sezione t va da 0 a 1: da ovest a est sui lati lunghi, da nord a sud sui lati corti.
 
-import { RINK } from './common.js?v=157';
+import { RINK } from './common.js?v=168';
 
 export const SIDES = ['north', 'south', 'west', 'east'];
 
@@ -194,9 +194,11 @@ export function inZone(S, t, R, z) {
   if (z.rowFrom != null && R.index < z.rowFrom) return false; // settore che non arriva al ghiaccio: davanti restano posti normali
   if (S.kind !== 'straight') {
     // cornerTo: l'angolo è occupato solo fino a quel punto (t da 0 sul lato del settore a 1 sull'altro lato).
-    if (z.corner) { const inC = (S.end === z.side && S.side === z.corner) || (S.side === z.side && S.end === z.corner); return inC && (z.cornerTo == null || (S.end === z.side ? t : 1 - t) <= z.cornerTo + 1e-6); }
+    // cornerFrom..cornerTo: tratto dell'angolo occupato (0 = dal lato del settore). cornerOnly: solo l'angolo, niente lato.
+    if (z.corner) { const inC = (S.end === z.side && S.side === z.corner) || (S.side === z.side && S.end === z.corner), tt = S.end === z.side ? t : 1 - t; return inC && tt >= (z.cornerFrom ?? 0) - 1e-6 && (z.cornerTo == null || tt <= z.cornerTo + 1e-6); }
     return S.wrap && S.end === z.side && z.from == null && z.to == null;
   }
+  if (z.cornerOnly) return false;
   return S.key === z.side && t >= (z.from ?? 0) - 1e-6 && t <= (z.to ?? 1) + 1e-6;
 }
 

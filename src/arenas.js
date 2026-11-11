@@ -307,24 +307,39 @@ export const ARENAS = {
   EHCK: {
     team: 'EHCK', name: 'Stimo Arena', formerName: 'Eishalle Schluefweg', city: 'Kloten', capacity: 7624, opened: 1952,
     note: 'La pista nel bosco dello Schluefweg: tetto grigio a due grandi falde poco inclinate, davanti un corpo basso con una grande terrazza. Dentro, tribune blu con le file alte rosse e un intero lato corto in piedi.',
-    facts: ['Circondata dal bosco', 'Tetto a padiglione e grande terrazza', 'Curva in piedi condivisa: casa e ospiti separati', 'Tribune blu con le file alte rosse'],
+    facts: ['Circondata dal bosco', 'Tetto a padiglione e grande terrazza', 'Muro «JETZT WIRD\'S Glatt» sotto la curva in piedi', 'Ospiti nella stessa curva, nell\'angolo, dietro il vetro'],
     gaps: { side: 2.4, bench: 4.4, end: 3.2 },
     stands: {
-      north: { base: 1.4, tiers: [seated(12, 0.45, 0.82), suites(3)] },
-      south: { base: 1.4, tiers: [seated(15, 0.45, 0.82)] },
-      west: { base: 2.4, tiers: [standing(20, 0.38, 0.55)] },
-      east: { base: 2, tiers: [seated(12, 0.45, 0.82)] },
+      // Dalla mappa: un solo anello di sedili su tre lati (dietro il lato nord, sul corridoio, le logge VIP). Testata ovest:
+      // davanti il muro bianco alto con la scritta «JETZT WIRD'S Glatt» e la fascia blu «STEHPLATZ SCHLUEFWEG» (home.wall),
+      // sopra un'unica curva in piedi: il Kloten e, a fianco nell'angolo sud-ovest, gli ospiti dietro il vetro. Niente LED.
+      // Tribune alte che salgono verso il buio del tetto, tutte con la stessa profondità (16 m) e la stessa quota in cima
+      // (15 m): la curva sopra il muro e i lati ripidi si uniscono negli angoli senza gradini. Dietro l'ultima fila un
+      // corridoio: logge VIP sul lato nord, altrove la balconata con le finestre sul cielo notturno (come la Tissot).
+      north: { base: 2.2, tiers: [seated(20, 0.674, 0.8), deck(2)] },
+      south: { base: 2.2, tiers: [seated(20, 0.674, 0.8), deck(2)] },
+      west: { base: 4.5, tiers: [standing(29, 0.375, 0.5517), deck(2)] },
+      // Testata est: una tribuna unica lunga e alta come i lati, che gira negli angoli.
+      east: { base: 2.2, tiers: [seated(20, 0.674, 0.8), deck(2)] },
     },
-    corners: { east: 'side' },
-    home: { side: 'west', from: 0, to: 0.72 },
-    guest: { side: 'west', from: 0.75, to: 1 },
-    led: { boards: true, rim: true },
+    corners: { west: 'end', east: 'side' },
+    home: { side: 'west', wall: ['JETZT WIRD\'S', 'Glatt', 'STEHPLATZ SCHLUEFWEG'] },
+    // Ospiti solo nell'angolo sud-ovest, nella sua metà verso il lato lungo (a sinistra guardando la curva).
+    guest: { side: 'west', cornerOnly: true, corner: 'south', cornerFrom: 0.4, cornerTo: 1, tier: 0, standing: true, glass: true },
+    led: { boards: true, rim: false },
+    extras: { vipGlass: { sides: ['north'], behind: true, h: 4.4, low: 1.2, people: 0.4 } },
     roof: { type: 'truss', clear: 6.5, color: '#dfe2e6', steel: '#a3a9b0' },
     cube: { w: 6, h: 3.6 },
     style: { concrete: '#868a90', riser: '#6c7076', wall: '#34383e', floor: '#26282c', seats: ['#1f47a0', '#1c4296'], seatPattern: 'blocks', upperSeats: { color: '#c0182c', from: 0.68 } },
     light: { tint: '#f6f8ff', ambient: 1, key: 1 },
-    exterior: { shape: 'rect', wall: '#a7abb0', facade: 'glass', uScale: 20, roof: 'hip', roofColor: '#7d8288', rise: 8, eaves: 2, ground: 'grass', trees: 620, forest: true, conifers: false,
-      features: [{ type: 'walkers', side: 'north', dist: 2, w: 10, len: 90, n: 25 }, { type: 'walkers', side: 'west', dist: 2, w: 10, len: 70, n: 35 }, { type: 'hall', side: 'south', dist: 0, w: 26, len: 70, h: 7, color: '#9c7f63', top: '#c9c9c4' }, { type: 'pool', side: 'north', dist: 30, offset: 50 }, { type: 'parking', side: 'east', dist: 10, w: 34, len: 60, cars: 40 }, { type: 'road', side: 'south', dist: 40 }] },
+    // Esterno dalle foto: nel bosco dello Schluefweg, due corpi attaccati. La sala alta (lamiera grecata argento, piano terra a
+    // campate vetrate, nastro di finestre e ballatoio d'acciaio sotto la gronda, scale a zigzag a est) con il tetto a padiglione
+    // grigio chiaro a nervature; a nord il corpo basso antracite con il grande piano scoperto, le rampe d'acciaio e la gradinata
+    // a est. A ovest la piscina all'aperto nel prato, a est l'antenna rossa e bianca; bosco fitto misto, città lontana a sud.
+    exterior: { shape: 'rect', wall: '#b3b8bd', height: 18.6, roof: 'hip', eaves: 3, rise: 6, ground: 'grass', plazaPad: 3, trees: 2600, forest: 'tight', forestDepth: 200, conifers: 'mixed',
+      stimo: { block: { depth: 34, h: 9, from: 4, to: 12 }, mastH: 42, mastAt: [6, -48] },
+      features: [{ type: 'walkers', side: 'south', dist: 3, w: 6, len: 90, n: 25 }, { type: 'road', side: 'south', dist: 22, len: 3200 }, { type: 'parking', side: 'south', dist: 34, w: 24, len: 60, cars: 30, offset: 50 },
+        { type: 'city', side: 'south', dist: 290, depth: 320, grid: 36, height: 22, spread: 560 }, { type: 'city', side: 'east', dist: 300, depth: 260, grid: 38, height: 16, spread: 420 }] },
   },
   SCLT: {
     team: 'SCLT', name: 'Emmental Versicherung Arena', formerName: 'Ilfishalle', city: 'Langnau', capacity: 6050, opened: 1975,

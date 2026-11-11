@@ -7,14 +7,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { TEAMS } from './teams.js?v=157';
-import { ARENAS } from './arenas.js?v=157';
-import { POSITIONS, placeholderLineup } from './lineups.js?v=157';
-import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=157';
-import { iceTexture, boardsTexture, ledTexture, suitesTexture, vipGlassTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=157';
-import { lambert, disposeObject, makePlayer } from './players.js?v=157';
-import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=157';
-import { buildExterior, octaRoof } from './exterior.js?v=157';
+import { TEAMS } from './teams.js?v=168';
+import { ARENAS } from './arenas.js?v=168';
+import { POSITIONS, placeholderLineup } from './lineups.js?v=168';
+import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=168';
+import { iceTexture, boardsTexture, ledTexture, suitesTexture, vipGlassTexture, sloganWallTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=168';
+import { lambert, disposeObject, makePlayer } from './players.js?v=168';
+import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=168';
+import { buildExterior, octaRoof } from './exterior.js?v=168';
 
 export { RINK };
 const NEUTRALS = ['#2b2f36', '#3c4048', '#56606b', '#e6e6e6', '#1d2a44', '#5b4636', '#8a8f99', '#1a1a1a', '#6f7f8f', '#a33a3a', '#3f5f3f'];
@@ -663,7 +663,16 @@ export class ArenaView {
     const H = A.home, curve = sectionByKey(this.layout, H.side), from = H.from ?? 0, to = H.to ?? 1;
     if ((H.tier ?? 0) === 0) {
       const l = readable(sectionLine(curve, -0.06, from + 0.03, to - 0.03)), len = Math.hypot(l.at(-1)[0] - l[0][0], l.at(-1)[1] - l[0][1]);
-      this.root.add(new THREE.Mesh(stripGeometry(l, 0.35, Math.max(1.2, curve.profile.base - 0.1), { uScale: len }), new THREE.MeshLambertMaterial({ map: bannerTexture(home, TEAMS[home].curve, TEAMS[home].chant), side: THREE.DoubleSide })));
+      // home.wall (Kloten): al posto dello striscione, il muro bianco alto davanti a tutta la curva (angoli compresi, se la
+      // curva li avvolge) con la scritta a fumetto e la fascia della curva in cima.
+      const y1 = Math.max(1.2, curve.profile.base - 0.1);
+      if (H.wall) {
+        const arcs = this.layout.sections.filter(c => c.kind === 'arc' && c.wrap && c.end === H.side && !c.hang), sideOf = c => c.side;
+        const startSide = H.side === 'west' || H.side === 'east' ? 'north' : 'west', A0 = arcs.find(c => sideOf(c) === startSide), A1 = arcs.find(c => sideOf(c) !== startSide);
+        const pts = [...(A0 ? sectionLine(A0, -0.06).reverse() : []), ...sectionLine(curve, -0.06), ...(A1 ? sectionLine(A1, -0.06) : [])].filter((p, i, a) => !i || Math.hypot(p[0] - a[i - 1][0], p[1] - a[i - 1][1]) > 0.05);
+        const wl = readable(pts); let L = 0; for (let i = 1; i < wl.length; i++) L += Math.hypot(wl[i][0] - wl[i - 1][0], wl[i][1] - wl[i - 1][1]);
+        this.root.add(new THREE.Mesh(stripGeometry(wl, 0.05, y1, { uScale: L }), new THREE.MeshLambertMaterial({ map: sloganWallTexture(H.wall[0], H.wall[1], L / (y1 - 0.05), H.wall[2]), side: THREE.DoubleSide })));
+      } else this.root.add(new THREE.Mesh(stripGeometry(l, 0.35, y1, { uScale: len }), new THREE.MeshLambertMaterial({ map: bannerTexture(home, TEAMS[home].curve, TEAMS[home].chant), side: THREE.DoubleSide })));
     }
     // Stendardi appesi al tetto sopra la curva di casa.
     const top = this.archRise ? this.roofY + this.archRise * 0.25 : this.lightY;
@@ -902,7 +911,10 @@ export class ArenaView {
       // rowFrom: il settore parte più in alto (davanti ci sono posti normali); lo striscione fa da parapetto sulla prima fila ospite.
       const RF = G.rowFrom != null ? S.profile.rows[G.rowFrom] : null;
       const d = RF ? RF.d - 0.08 : band ? band.d - 0.08 : -0.06, y1 = RF ? RF.h + 1.05 : band ? band.y1 - 0.1 : S.profile.base - 0.1, y0 = RF ? RF.below + 0.05 : band ? Math.max(band.y0 + 0.2, y1 - 1.3) : Math.max(0.35, y1 - 1.5);
-      const l = readable(sectionLine(S, d, (G.from ?? 0) + 0.02, (G.to ?? 1) - 0.02)), len = Math.hypot(l.at(-1)[0] - l[0][0], l.at(-1)[1] - l[0][1]);
+      // Settore solo nell'angolo (cornerOnly): lo striscione corre sul fronte dell'angolo, nel tratto occupato.
+      const GC = G.corner ? sections.find(c => c.kind === 'arc' && ((c.end === G.side && c.side === G.corner) || (c.side === G.side && c.end === G.corner))) : null;
+      const gcr = GC ? (GC.end === G.side ? [G.cornerFrom ?? 0, G.cornerTo ?? 1] : [1 - (G.cornerTo ?? 1), 1 - (G.cornerFrom ?? 0)]) : null;
+      const l = readable(G.cornerOnly && GC ? sectionLine(GC, d, gcr[0] + 0.03, gcr[1] - 0.03) : sectionLine(S, d, (G.from ?? 0) + 0.02, (G.to ?? 1) - 0.02)), len = l.reduce((a2, p, i) => i ? a2 + Math.hypot(p[0] - l[i - 1][0], p[1] - l[i - 1][1]) : 0, 0);
       this.awayLayer.add(new THREE.Mesh(stripGeometry(l, y0, y1, { uScale: len }), new THREE.MeshLambertMaterial({ map: bannerTexture(away, TA.name, 'Settore ospiti'), side: THREE.DoubleSide })));
       const rows = S.profile.rows.filter(R => R.tier === tier && R.index >= (G.rowFrom ?? 0)), net = new Mesher(), k = color('#cfd6dd');
       if (rows.length && !G.glass) for (const t of [G.from ?? 0, G.to ?? 1]) {
@@ -922,8 +934,8 @@ export class ArenaView {
         const hg = G.glassH ?? 2.6, GL = new Mesher(), FR = new Mesher(), gk = color('#8fc3e6'), fk = color('#eef2f5');
         const C = G.corner ? sections.find(c => c.kind === 'arc' && ((c.end === G.side && c.side === G.corner) || (c.side === G.side && c.end === G.corner))) : null, tc = G.cornerTo ?? 1;
         const startCorner = G.side === 'west' || G.side === 'east' ? G.corner === 'north' : G.corner === 'west';
-        const parts = [{ S, t0: G.from ?? 0, t1: G.to ?? 1, join: C ? (startCorner ? 0 : 1) : -1 }];
-        if (C) parts.push(C.end === G.side ? { S: C, t0: 0, t1: tc, join: 0 } : { S: C, t0: 1 - tc, t1: 1, join: 1 });
+        const parts = G.cornerOnly ? [] : [{ S, t0: G.from ?? 0, t1: G.to ?? 1, join: C ? (startCorner ? 0 : 1) : -1 }];
+        if (C) parts.push(G.cornerOnly ? { S: C, t0: gcr[0], t1: gcr[1], join: -1 } : C.end === G.side ? { S: C, t0: 0, t1: tc, join: 0 } : { S: C, t0: 1 - tc, t1: 1, join: 1 });
         for (const { S: Q, t0, t1, join } of parts) {
           const rr = Q.profile.rows.filter(R => R.tier === tier && R.index >= (G.rowFrom ?? 0)); if (!rr.length) continue;
           // Dietro l'ultima fila solo se lì non c'è già il muro di fondo (cioè se sopra c'è ancora un anello o un corridoio).

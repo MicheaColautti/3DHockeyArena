@@ -1,7 +1,7 @@
 // Texture disegnate su canvas (ghiaccio, LED, striscioni, bandiere, maglie) e materiali animati.
 import * as THREE from 'three';
-import { TEAMS } from './teams.js?v=157';
-import { RINK, FONT, seeded, lum, canvas, texture, drawLogo, fitText } from './common.js?v=157';
+import { TEAMS } from './teams.js?v=168';
+import { RINK, FONT, seeded, lum, canvas, texture, drawLogo, fitText } from './common.js?v=168';
 
 /* ---------- texture ---------- */
 
@@ -66,6 +66,22 @@ export function suitesTexture() {
   g.fillStyle = '#10141a'; g.fillRect(0, 0, W, H);
   for (let x = 0; x < W; x += 32) { const lit = rand() < 0.7; g.fillStyle = lit ? `rgba(255,${200 + rand() * 40 | 0},${140 + rand() * 50 | 0},${0.55 + rand() * 0.35})` : 'rgba(80,100,120,.35)'; g.fillRect(x + 3, 6, 26, H - 12); }
   return texture(c, true);
+}
+
+// Muro bianco davanti alla curva con una scritta a fumetto (Kloten: «JETZT WIRD'S Glatt»), con qualche raggio nero.
+export function sloganWallTexture(left, right, aspect = 3, band = null) {
+  const W = 2048, H = Math.max(160, Math.round(W / aspect)), [c, g] = canvas(W, H), rand = seeded(left + right);
+  g.fillStyle = '#f1f1ee'; g.fillRect(0, 0, W, H);
+  g.strokeStyle = '#111'; g.lineWidth = 4;
+  for (let i = 0; i < 40; i++) { const cx = W * (0.2 + rand() * 0.36), cy = H * (0.3 + rand() * 0.4), a = rand() * Math.PI * 2, r0 = H * 0.32, r1 = r0 + 18 + rand() * 30; g.beginPath(); g.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0); g.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); g.stroke(); }
+  g.fillStyle = '#121212'; g.textBaseline = 'middle';
+  // Scritta al centro del muro: «JETZT WIRD'S» in nero corsivo pesante e, staccato a destra, «Glatt».
+  g.save(); g.translate(W * 0.2, H * 0.6); g.transform(1, 0, -0.18, 1, 0, 0); g.font = `900 ${Math.round(H * 0.36)}px Impact, 'Arial Black', sans-serif`; g.fillText(left, 0, 0); g.restore();
+  g.font = `bold ${Math.round(H * 0.44)}px Georgia, 'Times New Roman', serif`; g.textAlign = 'left'; g.fillText(right, W * 0.6, H * 0.6);
+  // Fascia blu in cima con la scritta della curva (bianca, bordo rosso), come lo striscione del Kloten.
+  if (band) { const bh = H * 0.24; g.fillStyle = '#1d2f6e'; g.fillRect(0, 0, W, bh); g.fillStyle = '#c8202c'; g.fillRect(0, bh - 4, W, 4);
+    g.font = `900 ${Math.round(bh * 0.7)}px 'Courier New', monospace`; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = '#c8202c'; g.strokeText(band, W / 2, bh / 2); g.fillStyle = '#f4f4f2'; g.fillText(band, W / 2, bh / 2); }
+  return texture(c);
 }
 
 // Vetrata delle logge VIP: lastre alte con montanti chiari, riflesso freddo in alto e luce calda delle sale dietro,
