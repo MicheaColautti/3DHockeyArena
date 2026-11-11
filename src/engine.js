@@ -7,14 +7,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { TEAMS } from './teams.js?v=138';
-import { ARENAS } from './arenas.js?v=138';
-import { POSITIONS, placeholderLineup } from './lineups.js?v=138';
-import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=138';
-import { iceTexture, boardsTexture, ledTexture, suitesTexture, vipGlassTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=138';
-import { lambert, disposeObject, makePlayer } from './players.js?v=138';
-import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=138';
-import { buildExterior, octaRoof } from './exterior.js?v=138';
+import { TEAMS } from './teams.js?v=140';
+import { ARENAS } from './arenas.js?v=140';
+import { POSITIONS, placeholderLineup } from './lineups.js?v=140';
+import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=140';
+import { iceTexture, boardsTexture, ledTexture, suitesTexture, vipGlassTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=140';
+import { lambert, disposeObject, makePlayer } from './players.js?v=140';
+import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=140';
+import { buildExterior, octaRoof } from './exterior.js?v=140';
 
 export { RINK };
 const NEUTRALS = ['#2b2f36', '#3c4048', '#56606b', '#e6e6e6', '#1d2a44', '#5b4636', '#8a8f99', '#1a1a1a', '#6f7f8f', '#a33a3a', '#3f5f3f'];
@@ -621,6 +621,7 @@ export class ArenaView {
     const led = ledTexture(home, A.name), ledMat = new THREE.MeshBasicMaterial({ map: led, side: THREE.DoubleSide });
     this.leds.push({ tex: led, speed: 0.035 });
     const suitesMat = new THREE.MeshBasicMaterial({ map: suitesTexture(), side: THREE.DoubleSide });
+    const vipMat = new THREE.MeshBasicMaterial({ map: vipGlassTexture(), side: THREE.DoubleSide });
     const teamMat = new THREE.MeshLambertMaterial({ color: TEAMS[home].primary, side: THREE.DoubleSide });
     for (const S of sections) {
       const P = S.profile;
@@ -632,6 +633,11 @@ export class ArenaView {
           this.root.add(new THREE.Mesh(stripGeometry(readable(sectionLine(S, b.d - 0.07)), b.y1 - 2.0, b.y1 - 1.85, { uScale: 22 }), new THREE.MeshBasicMaterial({ color: '#f4f4f2', side: THREE.DoubleSide })));
         } else if (b.kind === 'led') this.root.add(new THREE.Mesh(stripGeometry(l, Math.max(b.y0 + 0.15, b.y1 - 1.05), b.y1 - 0.12, { uScale: 22 }), ledMat));
         else if (b.kind === 'suites') this.root.add(new THREE.Mesh(stripGeometry(l, b.y0 + 0.45, b.y1 - 0.4, { uScale: 6 }), suitesMat));
+        // 'vip': logge vetrate nella fascia tra i due anelli (Davos), con un filo chiaro sopra e sotto.
+        else if (b.kind === 'vip') {
+          this.root.add(new THREE.Mesh(stripGeometry(l, b.y0 + 0.25, b.y1 - 0.2, { uScale: 4.4 }), vipMat));
+          for (const [a0, a1] of [[b.y0 + 0.1, b.y0 + 0.25], [b.y1 - 0.2, b.y1 - 0.08]]) this.root.add(new THREE.Mesh(stripGeometry(readable(sectionLine(S, b.d - 0.07)), a0, a1, { uScale: 10 }), new THREE.MeshBasicMaterial({ color: '#dfe3e7', side: THREE.DoubleSide })));
+        }
         // 'white' (Friburgo): fascia bianca luminosa sul fronte dell'anello alto, con un filo rosso sotto (style.detail).
         else if (b.kind === 'white') {
           this.root.add(new THREE.Mesh(stripGeometry(l, b.y1 - 0.75, b.y1 - 0.15, { uScale: 10 }), new THREE.MeshBasicMaterial({ color: '#f3f5f7', side: THREE.DoubleSide })));
@@ -700,9 +706,15 @@ export class ArenaView {
       for (const S of secs) {
         const P = S.profile;
         if (S.kind === 'straight' && sides.includes(S.key)) {
-          const g0 = P.top + (VG.low ?? 0.5);
-          this.root.add(new THREE.Mesh(stripGeometry(readable(sectionLine(S, P.depth - 0.08)), g0, y1, { uScale: VG.pane ?? 4.4 }), glassMat));
-          const lf = readable(sectionLine(S, P.depth - 0.1));
+          // Se tra l'ultima fila e la fascia comune c'è spazio, la vetrata ha due piani: il marcapiano bianco (con il filo del
+          // colore di casa) sta alla quota del pavimento della balconata, così la linea gira attorno alla sala.
+          const g0 = P.top + (VG.low ?? 0.5), gl = readable(sectionLine(S, P.depth - 0.08)), lf = readable(sectionLine(S, P.depth - 0.1));
+          const two = y0 - 0.35 - g0 > 1.2, pane = VG.pane ?? 4.4;
+          if (two) {
+            this.root.add(new THREE.Mesh(stripGeometry(gl, g0, y0 - 0.35, { uScale: pane }), glassMat), new THREE.Mesh(stripGeometry(gl, y0, y1, { uScale: pane }), glassMat));
+            this.root.add(new THREE.Mesh(stripGeometry(lf, y0 - 0.35, y0, { uScale: 10 }), fr));
+            this.root.add(new THREE.Mesh(stripGeometry(readable(sectionLine(S, P.depth - 0.12)), y0 - 0.22, y0 - 0.14, { uScale: 10 }), new THREE.MeshBasicMaterial({ color: TEAMS[home].primary, side: THREE.DoubleSide })));
+          } else this.root.add(new THREE.Mesh(stripGeometry(gl, g0, y1, { uScale: pane }), glassMat));
           for (const [a, b] of [[g0 - 0.3, g0], [y1, y1 + 0.25]]) this.root.add(new THREE.Mesh(stripGeometry(lf, a, b, { uScale: 10 }), fr));
           continue;
         }

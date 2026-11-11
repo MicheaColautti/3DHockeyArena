@@ -4,8 +4,8 @@
 // finisce nella lista `night` restituita, e la vista ne regola l'intensità durante il tramonto.
 
 import * as THREE from 'three';
-import { TEAMS } from './teams.js?v=138';
-import { seeded, color, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect } from './common.js?v=138';
+import { TEAMS } from './teams.js?v=140';
+import { seeded, color, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect } from './common.js?v=140';
 
 const pick3 = (rand, list) => list[Math.floor(rand() * list.length)];
 const GROUND = { urban: '#8e8f88', alpine: '#6f8a55', grass: '#79925a', snow: '#e6ebf0' };

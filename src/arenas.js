@@ -3,7 +3,7 @@
 //
 // Convenzione (vedi layout.js): north = lato lungo lontano, south = lato lungo con le panchine, west/east = lati corti.
 // stands.<lato>   profilo della tribuna: base (muretto davanti alla prima fila) e tiers (anelli):
-//                 { rows, rise (m per fila), depth (m per fila), standing, gap: { depth, rise }, fascia: 'led'|'suites'|'team'|'plain' }
+//                 { rows, rise (m per fila), depth (m per fila), standing, gap: { depth, rise }, fascia: 'led'|'suites'|'vip'|'team'|'plain' }
 // corners         false (aperti) | true (girano le tribune laterali) | { west: 'end'|'side', east: 'end'|'side' }
 //                 'end' = l'angolo prende il profilo del lato corto (curva che avvolge gli angoli)
 //                 'wedge' = cunei d'angolo (Lugano): prisma triangolare con la gradinata che scende verso il ghiaccio; opzioni in wedge
@@ -18,10 +18,8 @@
 const seated = (rows, rise = 0.44, depth = 0.82, more = {}) => ({ rows, rise, depth, ...more });
 const standing = (rows, rise = 0.38, depth = 0.55, more = {}) => ({ rows, rise, depth, standing: true, ...more });
 const upper = (rows, rise, depth, fascia = 'led', gap = { depth: 1.8, rise: 2.6 }) => ({ rows, rise, depth, gap, fascia });
-// Balconata: anello superiore corto, con fascia LED davanti.
 // Secondo anello di Berna: muro alto con striscia LED davanti (fascia 'wall'), corridoio largo.
 const ring2 = t => ({ gap: { depth: 3.2, rise: 5.5 }, fascia: 'wall', ...t });
-const balcony = (rows = 4) => ({ rows, rise: 0.52, depth: 0.8, gap: { depth: 1.2, rise: 2.2 }, fascia: 'led' });
 const suites = (rows = 3) => ({ rows, rise: 0.5, depth: 0.9, gap: { depth: 2, rise: 3.2 }, fascia: 'suites' });
 
 export const ARENAS = {
@@ -31,10 +29,12 @@ export const ARENAS = {
     facts: ['Progetto di Mario Botta', 'Volta a botte con pannelli sopra la pista', 'Curva Sud: circa 3000 posti in piedi', 'Ospiti nell\'angolo sinistro della curva opposta'],
     gaps: { side: 2.2, bench: 4.2, end: 3 },
     stands: {
-      north: { base: 1.3, tiers: [seated(13, 0.5, 0.8), upper(6, 0.56, 0.8)] },
-      south: { base: 1.3, tiers: [seated(13, 0.5, 0.8), suites(3)] },
+      // Un solo anello di spalti (stessa profondità e quota di prima); sopra gira l'anello della balconata, con le logge
+      // VIP vetrate sul lato sud (extras.vipGlass).
+      north: { base: 1.3, tiers: [seated(21, 0.56, 0.8)] },
+      south: { base: 1.3, tiers: [seated(19, 0.56, 0.8)] },
       west: { base: 2.4, tiers: [standing(24, 0.42, 0.55)] },
-      east: { base: 2.2, tiers: [seated(11, 0.5, 0.8), upper(5, 0.56, 0.8)] },
+      east: { base: 2.2, tiers: [seated(18, 0.56, 0.8)] },
     },
     corners: { west: 'end', east: 'side' },
     home: { side: 'west' },
@@ -42,6 +42,7 @@ export const ARENAS = {
     led: { boards: true, rim: true },
     roof: { type: 'vault', rise: 0.16, clear: 6, color: '#c3c7cc', steel: '#8d939b' },
     cube: { w: 6, h: 3.6 },
+    extras: { vipGlass: { sides: ['south'], h: 3.2, low: 1.4, balcony: 1.4, people: 0.35 } },
     style: { concrete: '#8e9297', riser: '#777b80', wall: '#3a3e44', floor: '#24272c', seats: ['#1f5fc8', '#2766cf'], seatPattern: 'blocks' },
     light: { tint: '#eef3ff', ambient: 1, key: 1.1 },
     exterior: { shape: 'rect', wall: '#85878b', facade: 'slots', line: '#3c64ff', uScale: 22, height: 15, podium: { h: 3.5, out: 7, color: '#bdbcb7' }, recess: { h: 4, in: 2.5 },
@@ -56,10 +57,12 @@ export const ARENAS = {
     facts: ['Curva Nord, Curva San Salvatore e Curva Ospiti', 'Ospiti sul lato corto, accanto alla San Salvatore', 'Tribune su due livelli ai lati', 'Acustica tra le più famose della lega'],
     gaps: { side: 2.4, bench: 4.4, end: 3.2 },
     stands: {
-      north: { base: 1.4, tiers: [seated(10, 0.42, 0.82), upper(8, 0.48, 0.8, 'suites', { depth: 1.4, rise: 2.4 }), balcony()] },
-      south: { base: 1.4, tiers: [seated(10, 0.42, 0.82), upper(8, 0.48, 0.8, 'suites', { depth: 1.4, rise: 2.4 }), balcony()] },
-      west: { base: 2.4, tiers: [standing(22, 0.38, 0.55), suites(2), balcony()] },
-      east: { base: 2.2, tiers: [standing(18, 0.38, 0.55), upper(8, 0.5, 0.8, 'suites', { depth: 1.4, rise: 2.4 }), balcony()] },
+      // Due anelli; i box e il terzo anello con il pubblico sono diventati la fascia delle logge: vetrate VIP sui lati lunghi
+      // e balconata su testate e cunei (extras.vipGlass). Secondo anello più lungo e ripido: ingombro e quote come prima.
+      north: { base: 1.4, tiers: [seated(10, 0.42, 0.82), upper(13, 0.6, 0.8, 'led', { depth: 1.4, rise: 2.4 })] },
+      south: { base: 1.4, tiers: [seated(10, 0.42, 0.82), upper(13, 0.6, 0.8, 'led', { depth: 1.4, rise: 2.4 })] },
+      west: { base: 2.4, tiers: [standing(22, 0.38, 0.55), upper(9, 0.6, 0.8, 'led', { depth: 1.4, rise: 2.4 })] },
+      east: { base: 2.2, tiers: [standing(18, 0.38, 0.55), upper(13, 0.6, 0.8, 'led', { depth: 1.4, rise: 2.4 })] },
     },
     corners: 'wedge',
     noAisles: true, guestWall: true,
@@ -69,6 +72,7 @@ export const ARENAS = {
     led: { boards: true, rim: false },
     roof: { type: 'truss', clear: 6.5, color: '#2a2d32', steel: '#d5d8dc', cross: true },
     cube: { w: 6, h: 3.4 },
+    extras: { vipGlass: { sides: ['north', 'south'], h: 3.2, balcony: 1.4, people: 0.35 } },
     style: { concrete: '#5c5f64', riser: '#4a4d52', wall: '#2c2f34', floor: '#24262a', seats: ['#25282d', '#25282d', '#c98a1c'], seatPattern: 'rows' },
     light: { tint: '#fff6e6', ambient: 1, key: 1 },
     exterior: { shape: 'rect', wall: '#d3cfc6', facade: 'hallglass', uScale: 30, roof: 'barrel', roofMat: 'metal', roofColor: '#9ea2a6', rise: 7.5, eaveOut: 1.2, capsGlass: true, glow: '#f6f2e4', ledges: [0.5, 0.995], ledgeColor: '#e6e3dc',
@@ -192,7 +196,8 @@ export const ARENAS = {
     gaps: { side: 2.4, bench: 4.4, end: 3.2 },
     stands: {
       north: { base: 1.3, tiers: [seated(11, 0.46, 0.8), upper(10, 0.54, 0.8, 'plain', { depth: 1.4, rise: 1.8 })] },
-      south: { base: 1.3, tiers: [seated(15, 0.44, 0.8), upper(7, 0.52, 0.8, 'suites', { depth: 1.4, rise: 2.4 })] },
+      // Fascia tra i due anelli del lato sud: logge vetrate (fascia 'vip'); niente balconata, la volta scende sulle tribune.
+      south: { base: 1.3, tiers: [seated(15, 0.44, 0.8), upper(7, 0.52, 0.8, 'vip', { depth: 1.4, rise: 2.4 })] },
       west: { base: 2.3, tiers: [standing(26, 0.4, 0.55)] },
       east: { base: 2.1, tiers: [seated(10, 0.46, 0.8), upper(11, 0.54, 0.8, 'plain', { depth: 1.6, rise: 1.6 })] },
     },
