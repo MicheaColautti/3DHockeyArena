@@ -422,22 +422,40 @@ export const ARENAS = {
     facts: ['Un solo anello', 'Curva in piedi divisa: Heim e Gäste', 'Capriate rosse e tabellone rotondo', 'Nuova sala di allenamento accanto'],
     gaps: { side: 2.2, bench: 4.2, end: 3 },
     stands: {
-      north: { base: 1.3, tiers: [seated(13, 0.42, 0.8)] },
-      south: { base: 1.3, tiers: [seated(13, 0.42, 0.8)] },
-      west: { base: 2.3, tiers: [standing(16, 0.38, 0.55)] },
-      east: { base: 2, tiers: [seated(6, 0.42, 0.8)] },
+      // Tribune molto alte su tutti i lati, fin quasi al soffitto, tutte con la stessa profondità e quota (si uniscono negli
+      // angoli). Curva ovest in piedi come a Kloten; gli ospiti nell'angolo sud-ovest, accanto alla tribuna del lato lungo, dietro il vetro.
+      // Sul lato delle panchine le logge VIP dentro la tribuna, con file di sedili sopra, sotto e ai lati (vipBoxes).
+      north: { base: 2, tiers: [seated(21, 0.6, 0.8)] },
+      south: { base: 2, tiers: [seated(21, 0.6, 0.8)] },
+      west: { base: 2, tiers: [standing(30, 0.414, 0.56)] },
+      east: { base: 2, tiers: [seated(21, 0.6, 0.8)] },
     },
-    corners: false,
-    home: { side: 'west', from: 0.52, to: 1 },
-    guest: { side: 'west', from: 0, to: 0.48 },
+    corners: { west: 'end', east: 'side' },
+    // Ospiti nell'angolo sud-ovest della curva, attaccati alla tribuna del lato lungo (non dentro la curva di casa).
+    home: { side: 'west' },
+    guest: { side: 'west', cornerOnly: true, corner: 'south', cornerFrom: 0.2, cornerTo: 1, tier: 0, standing: true, glass: true },
+    // Logge VIP nelle ultime file in alto del lato panchine: nessuno sopra.
+    vipBoxes: { side: 'south', rowFrom: 16, rows: 5, from: 0.12, to: 0.88, n: 8 },
     led: { boards: true, rim: true },
-    roof: { type: 'truss', clear: 6.5, color: '#e6e7e8', steel: '#c41f2e' },
+    roof: { type: 'truss', clear: 3.6, color: '#e6e7e8', steel: '#c41f2e' },
     cube: { w: 6, h: 3, round: true },
     style: { concrete: '#8d9197', riser: '#73777d', wall: '#9ea3aa', floor: '#27292d', seats: ['#c4122a', '#1f3f8f'], seatPattern: 'blocks' },
     light: { tint: '#ffffff', ambient: 1.1, key: 1 },
-    exterior: { shape: 'rect', wall: '#eef0f1', facade: 'hslats', uScale: 20, roof: 'flat', roofMat: 'membrane', roofColor: '#e8eaec', ground: 'grass', trees: 110, conifers: false,
-      features: [{ type: 'walkers', side: 'east', dist: 2, w: 8, len: 70, n: 25 }, { type: 'walkers', side: 'north', dist: 2, w: 10, len: 90, n: 35 }, { type: 'hall', side: 'south', dist: 0, w: 9, len: 44, h: 5, color: '#4a3426', offset: 14 }, { type: 'hall', side: 'east', dist: 10, w: 30, len: 60, h: 11, color: '#f2f3f4', roof: 'gable', solar: true, rise: 4 }, { type: 'pitch', side: 'north', dist: 30 },
-        { type: 'road', side: 'west', dist: 10 }, { type: 'road', side: 'south', dist: 22 }, { type: 'parking', side: 'east', dist: 50, w: 30, len: 60, cars: 40 }, { type: 'city', side: 'north', dist: 130, n: 60, height: 16 }, { type: 'slope', side: 'north', dist: 150, angle: 0.25, depth: 260, trees: 200, conifers: false, houses: 24 }] },
+    // Esterno dalle foto: scatola bianca in lamiera ondulata con il tetto a padiglione chiaro; sul fronte nord la fascia
+    // vetrata nera, la scritta, il piano terra vetrato e il Corner in legno scuro. Davanti due piste all'aperto (quella ovale
+    // a terra, l'altra sulla piattaforma), di fianco il campo da calcio, verso est il lago; dietro parcheggio, strada,
+    // ferrovia e zona industriale, poi la città e le montagne.
+    exterior: { shape: 'rect', wall: '#e3e6e8', signColor: '#2c3238', height: 16, roof: 'hip', hipSeams: true, eaves: 0.6, rise: 3.2, hip: 0.75, ridgeAt: 0.72, roofDetails: true, chimneys: 6, ground: 'urban', trees: 90, conifers: false, mountains: 10, mountainDist: 760,
+      rj: { ground: 3.8, band: 6.2, cornerAt: 0.55, cornerLen: 34, cornerDepth: 9 },
+      features: [{ type: 'walkers', side: 'north', dist: 10, w: 4, len: 100, n: 30 }, { type: 'walkers', side: 'south', dist: 2, w: 6, len: 90, n: 20 },
+        { type: 'icerink', side: 'north', dist: 13, w: 28, len: 58, offset: -26, details: true, skaters: 18, mastH: 12 },
+        { type: 'icerink', side: 'north', dist: 13, w: 24, len: 42, offset: 40, y: 3.5, details: true, skaters: 10, mastH: 10 },
+        { type: 'pitch', side: 'west', dist: 14, details: true },
+        { type: 'lake', side: 'east', dist: 90, w: 2400, len: 2400 },
+        { type: 'parking', side: 'south', dist: 10, w: 40, len: 110, cars: 70 }, { type: 'road', side: 'south', dist: 56, len: 2600, traffic: true },
+        { type: 'rail', side: 'south', dist: 72, tracks: 3, trains: true, len: 2600 },
+        { type: 'industry', side: 'south', dist: 92, depth: 170, spread: 360, n: 30 },
+        { type: 'city', side: 'west', dist: 160, depth: 260, grid: 32, n: 50, height: 14, spread: 360 }, { type: 'city', side: 'north', dist: 120, depth: 220, grid: 34, n: 40, height: 12, spread: 260, offset: -120 }] },
   },
   ZSC: {
     team: 'ZSC', name: 'Swiss Life Arena', city: 'Zurigo', capacity: 12000, opened: 2022,

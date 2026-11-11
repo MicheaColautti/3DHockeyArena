@@ -4,8 +4,8 @@
 // finisce nella lista `night` restituita, e la vista ne regola l'intensità durante il tramonto.
 
 import * as THREE from 'three';
-import { TEAMS } from './teams.js?v=173';
-import { seeded, color, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect } from './common.js?v=173';
+import { TEAMS } from './teams.js?v=178';
+import { seeded, color, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect } from './common.js?v=178';
 
 const pick3 = (rand, list) => list[Math.floor(rand() * list.length)];
 const GROUND = { urban: '#8e8f88', alpine: '#6f8a55', grass: '#79925a', snow: '#e6ebf0' };
@@ -313,6 +313,7 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
   const ZG = E.zug, zgW = ZG ? (ZG.over ?? 40) + (ZG.towerGap ?? 2) + (ZG.towerW ?? 26) + 4 : 0;
   // Bienne (tissot): stabile lungo e largo `width`, con lo stadio (lungo `stadiumLen`) a ovest della sala; xj = giunto.
   // Kloten (stimo): corpo basso a nord e antenna a est; i dintorni partono anche da loro.
+  const RJ = E.rj;
   const SK = E.stimo, skN = SK ? (SK.block?.depth ?? 34) + 5 : 0, skE = SK ? 14 : 0;
   const TS = E.tissot, tsBox = TS ? (() => { const W = TS.width ?? 104, zc = (EZs - EZn) / 2, xj = -EX - pad - (TS.gap ?? 4); return { x0: xj - (TS.stadiumLen ?? 140), xj, x1: EX + pad + (TS.endPad ?? 4), z0: zc - W / 2, z1: zc + W / 2, zc }; })() : null;
   const out = !!E.octaStar, X0 = out ? Math.min(...fp.map(q => q[0])) : Math.min(-EX - pad - cW - zgW, lsWing ? lsWing.x0 : Infinity, tsBox ? tsBox.x0 : Infinity), X1 = out ? Math.max(...fp.map(q => q[0])) : Math.max(EX + pad + cE + skE, lsWing ? lsWing.x1 : -Infinity, tsBox ? tsBox.x1 : -Infinity), Z0 = out ? Math.min(...fp.map(q => q[1])) : Math.min(-EZn - pad - skN, lsWing ? lsWing.z0 : Infinity, tsBox ? tsBox.z0 : Infinity), Z1 = out ? Math.max(...fp.map(q => q[1])) : Math.max(EZs + pad, lsWing ? lsWing.z1 + lsTip : -Infinity, tsBox ? tsBox.z1 : -Infinity);
@@ -338,14 +339,29 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
     geo.rotateX(-Math.PI / 2);
     const uvA = geo.attributes.uv, posA = geo.attributes.position; for (let i = 0; i < posA.count; i++) uvA.setXY(i, posA.getX(i) / lx + 0.5, posA.getZ(i) / lz + 0.5);
     const ice = new THREE.Mesh(geo, nightMat(new THREE.MeshPhongMaterial({ map: f.lines === false ? null : iceRinkTexture(), color: '#eef4f8', shininess: 90, emissive: color(f.glow || '#dfe9ff'), emissiveIntensity: 0 }), f.nightPower ?? 0.75));
-    ice.position.set(cx, 0.05, cz); group.add(ice);
-    group.add(new THREE.Mesh(stripGeometry(roundedRect(lx / 2, lz / 2, Math.min(lx, lz) * 0.28, 8).map(([x, z]) => [x + cx, z + cz]), 0, 1.1, { closed: true }), new THREE.MeshLambertMaterial({ color: f.boards || '#f3f4f2', side: THREE.DoubleSide })));
-    if (f.track) { const tr = new THREE.Mesh(new THREE.RingGeometry(1, 1.18, 48), new THREE.MeshLambertMaterial({ color: '#d4dbe2', side: THREE.DoubleSide })); tr.rotation.x = -Math.PI / 2; tr.scale.set(lx * 0.7, lz * 0.75, 1); tr.position.set(cx, 0.04, cz); group.add(tr); }
+    // y: pista rialzata (Rapperswil, sulla piattaforma); details: vetri sulle balaustre, fascia pubblicitaria, porte, panchine e pattinatori.
+    const by = f.y ?? 0, rc = Math.min(lx, lz) * 0.28, ring = (d = 0) => roundedRect(lx / 2 + d, lz / 2 + d, rc + d, 8).map(([x, z]) => [x + cx, z + cz]);
+    ice.position.set(cx, by + 0.05, cz); group.add(ice);
+    group.add(new THREE.Mesh(stripGeometry(ring(), by, by + 1.1, { closed: true }), new THREE.MeshLambertMaterial({ color: f.boards || '#f3f4f2', side: THREE.DoubleSide })));
+    if (f.details) {
+      const [ac, ag] = canvas(512, 32), ra = seeded('rink-ads' + cx), adC = ['#1f4f9e', '#d6452e', '#f2c500', '#2b2e33', '#3a8f4a', '#e07a2b', '#ffffff', '#c4122a'];
+      for (let x = 0; x < 512; x += 64) { ag.fillStyle = adC[(ra() * adC.length) | 0]; ag.fillRect(x, 0, 64, 32); ag.fillStyle = 'rgba(255,255,255,.8)'; ag.fillRect(x + 10, 12, 30 + ra() * 14, 8); }
+      group.add(new THREE.Mesh(stripGeometry(ring(0.04), by + 0.25, by + 0.9, { closed: true, uScale: 14 }), new THREE.MeshLambertMaterial({ map: texture(ac, true), side: THREE.DoubleSide })));
+      group.add(new THREE.Mesh(stripGeometry(ring(), by + 1.1, by + 2.5, { closed: true }), new THREE.MeshLambertMaterial({ color: '#cfe4f2', transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false })));
+      const long = lx >= lz, gx = (long ? lx : lz) / 2 - 4, red = color('#d62828'), net = color('#f2f2f2');
+      for (const sg of [-1, 1]) { const x = long ? cx + sg * gx : cx, z = long ? cz : cz + sg * gx, rot = long ? 0 : Math.PI / 2;
+        R.box(x, by + 0.6, z, long ? 0.1 : 1.8, 1.2, long ? 1.8 : 0.1, red, rot); R.box(x + (long ? sg * 0.5 : 0), by + 0.6, z + (long ? 0 : sg * 0.5), long ? 1 : 1.9, 1.1, long ? 1.9 : 1, net, 0); }
+      const shirts = ['#c4122a', '#1f3f8f', '#2b2e33', '#f2f2f0', '#e07a2b', '#3a8f4a', '#7a7f86'];
+      for (let i = 0; i < (f.skaters ?? 14); i++) { const x = cx + (ra() - 0.5) * (lx - 8), z = cz + (ra() - 0.5) * (lz - 6), k = color(shirts[(ra() * shirts.length) | 0]);
+        R.box(x, by + 0.5, z, 0.32, 1, 0.22, color('#2a2d33')); R.box(x, by + 1.2, z, 0.44, 0.6, 0.28, k); R.box(x, by + 1.65, z, 0.22, 0.24, 0.22, color('#d7a985')); }
+      for (const sg of [-1, 1]) R.box(long ? cx + sg * 6 : cx + lx / 2 + 1.6, by + 0.25, long ? cz + lz / 2 + 1.6 : cz + sg * 6, long ? 5 : 0.6, 0.5, long ? 0.6 : 5, color('#6d533d'));
+    }
+    if (f.track) { const tr = new THREE.Mesh(new THREE.RingGeometry(1, 1.18, 48), new THREE.MeshLambertMaterial({ color: '#d4dbe2', side: THREE.DoubleSide })); tr.rotation.x = -Math.PI / 2; tr.scale.set(lx * 0.7, lz * 0.75, 1); tr.position.set(cx, by + 0.04, cz); group.add(tr); }
     const mh = f.mastH ?? 14;
-    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, -1], [0, 1]]) { const x = cx + sx * (lx / 2 + 2), z = cz + sz * (lz / 2 + 2); R.box(x, mh / 2, z, 0.35, mh, 0.35, color('#9a9da2')); R.box(x, mh + 0.4, z, 1.6, 0.8, 0.5, color('#5d6166')); lamps.push({ x, y: mh, z, c: '#ffffff', s: f.masts ? 6 : 4.5 }); }
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, -1], [0, 1]]) { const x = cx + sx * (lx / 2 + 2), z = cz + sz * (lz / 2 + 2); R.box(x, by + mh / 2, z, 0.35, mh, 0.35, color('#9a9da2')); R.box(x, by + mh + 0.4, z, 1.6, 0.8, 0.5, color('#5d6166')); lamps.push({ x, y: by + mh, z, c: '#ffffff', s: f.masts ? 6 : 4.5 }); }
     // Di sera un alone chiaro sul ghiaccio, come i campi illuminati.
     const halo2 = new THREE.Mesh(new THREE.PlaneGeometry(lx * 1.5, lz * 1.6), nightMat(new THREE.MeshBasicMaterial({ map: radialTexture(), color: '#eaf2ff', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }), f.halo ?? 0.35, 'opacity'));
-    halo2.rotation.x = -Math.PI / 2; halo2.position.set(cx, 0.3, cz); group.add(halo2);
+    halo2.rotation.x = -Math.PI / 2; halo2.position.set(cx, by + 0.3, cz); group.add(halo2);
     group.add(R.mesh());
     occupy(cx - lx / 2 - 4, cx + lx / 2 + 4, cz - lz / 2 - 4, cz + lz / 2 + 4);
   }
@@ -434,6 +450,7 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
   else if (ZG) facade = zugHall();
   else if (TS) facade = tissotHall();
   else if (SK) facade = stimoHall();
+  else if (RJ) facade = rjHall();
   else { facade = new THREE.Mesh(stripGeometry(fp, 0, H, { closed: true, uScale }), facMat); group.add(facade); }
 
   // Davos: base ottagonale vetrata (di sera dorata) con una gronda bianca tutt'attorno; sopra, arretrata, la sala coperta
@@ -1019,6 +1036,53 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
     return wall;
   }
 
+  // Rapperswil (rj): scatola bianca in lamiera ondulata orizzontale con il tetto a padiglione chiaro (roof 'hip' +
+  // hipSeams). Sul fronte nord, verso le piste all'aperto, la grande fascia vetrata nera in due pannelli, la scritta e il
+  // piano terra vetrato; in alto gruppi di finestre bianche su tutti i lati; davanti il Corner, basso in legno scuro con
+  // la porta rossa e il nastro di finestre.
+  function rjHall() {
+    const K = RJ, x0 = -EX - pad, x1 = EX + pad, z0 = -EZn - pad, z1 = EZs + pad, gh = K.ground ?? 3.8, L = x1 - x0;
+    const R = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]];
+    const [c, g] = canvas(256, 256); g.fillStyle = '#e3e6e8'; g.fillRect(0, 0, 256, 256);
+    for (let y = 0; y < 256; y += 6) { g.fillStyle = 'rgba(110,118,126,.32)'; g.fillRect(0, y, 256, 1.5); g.fillStyle = 'rgba(255,255,255,.55)'; g.fillRect(0, y + 2, 256, 1); }
+    const tex = texture(c, true); tex.wrapT = THREE.RepeatWrapping;
+    const wg = stripGeometry(R, gh, H, { closed: true, uScale: 8 }), wp = wg.attributes.position, wu = wg.attributes.uv; for (let i = 0; i < wu.count; i++) wu.setY(i, wp.getY(i) / 6);
+    const wall = new THREE.Mesh(wg, new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide })); group.add(wall);
+    // Piano terra: zoccolo grigio scuro tutt'attorno, vetrato e acceso sul fronte nord.
+    group.add(new THREE.Mesh(stripGeometry(R, 0, gh, { closed: true }), new THREE.MeshLambertMaterial({ color: '#5b5f64', side: THREE.DoubleSide })));
+    const glassMat = (tint, k = 0.9, day = 0.05) => nightMat(new THREE.MeshLambertMaterial({ map: glazingTexture(), emissiveMap: glazingNightTexture(tint), emissive: color('#ffffff'), emissiveIntensity: day, side: THREE.DoubleSide }), k, 'emissiveIntensity', day);
+    { const gg = stripGeometry([[x0 + 4, z0 - 0.05], [x1 - 4, z0 - 0.05]], 0, gh - 0.3, { uScale: 4 }), gu = gg.attributes.uv; for (let i = 0; i < gu.count; i++) gu.setY(i, gu.getY(i) * (gh - 0.3) / 5.3); group.add(new THREE.Mesh(gg, glassMat('#ffd9a0'))); }
+    // Fascia vetrata nera a griglia in due pannelli sul fronte nord.
+    const [bc, bg] = canvas(256, 64), [bn, bgn] = canvas(256, 64), r2 = seeded('rj-band');
+    bg.fillStyle = '#15171b'; bg.fillRect(0, 0, 256, 64); bg.fillStyle = '#3b4048'; for (let x = 0; x < 256; x += 16) bg.fillRect(x, 0, 1.5, 64); for (let y = 0; y < 64; y += 16) bg.fillRect(0, y, 256, 1.5);
+    bgn.fillStyle = '#000'; bgn.fillRect(0, 0, 256, 64); for (let x = 0; x < 256; x += 16) for (let y = 0; y < 64; y += 16) if (r2() < 0.18) { bgn.fillStyle = '#ffd9a0'; bgn.fillRect(x + 2, y + 2, 12, 12); }
+    const bandMat = nightMat(new THREE.MeshLambertMaterial({ map: texture(bc, true), emissiveMap: texture(bn, true), emissive: color('#ffffff'), emissiveIntensity: 0, side: THREE.DoubleSide }), 0.9);
+    const by0 = gh + 0.8, by1 = gh + (K.band ?? 6.2), xm = x0 + L * 0.47;
+    for (const [a, b] of [[x0 + 6, xm - 0.8], [xm + 0.8, x1 - 16]]) { const bgm = stripGeometry([[a, z0 - 0.06], [b, z0 - 0.06]], by0, by1, { uScale: 8 }); group.add(new THREE.Mesh(bgm, bandMat)); }
+    // Gruppi di finestre bianche in alto (telaio bianco, vetro grigio).
+    const [fc, fg] = canvas(256, 64); fg.fillStyle = '#f4f5f6'; fg.fillRect(0, 0, 256, 64); fg.fillStyle = '#9aa4ad'; for (let x = 0; x < 4; x++) fg.fillRect(6 + x * 63, 6, 55, 52);
+    const winMat = nightMat(new THREE.MeshLambertMaterial({ map: texture(fc), emissive: color('#ffe2b0'), emissiveIntensity: 0, side: THREE.DoubleSide }), 0.4);
+    const yw = H - 6.2, hw = 3;
+    const groups = [[[x0, z0], [x1, z0], [0.2, 0.33, 0.58, 0.7]], [[x1, z1], [x0, z1], [0.25, 0.6]], [[x0, z1], [x0, z0], [0.35]], [[x1, z0], [x1, z1], [0.35, 0.65]]];
+    for (const [a, b, ts] of groups) for (const t of ts) {
+      const dx = b[0] - a[0], dz = b[1] - a[1], ln = Math.hypot(dx, dz), nx = dz / ln, nz = -dx / ln, cx = a[0] + dx * t + nx * 0.07, cz = a[1] + dz * t + nz * 0.07;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(10, hw), winMat); m.position.set(cx, yw + hw / 2, cz); m.rotation.y = Math.atan2(nx, nz); group.add(m);
+    }
+    // Il Corner: corpo basso in legno scuro davanti al fronte nord, porta rossa, nastro di finestre, tetto piano scuro.
+    const ca = x0 + L * (K.cornerAt ?? 0.55), cb = ca + (K.cornerLen ?? 34), cd = K.cornerDepth ?? 9, ch = 4.4, C2 = new Mesher();
+    const [wc, wg2] = canvas(256, 64), r3 = seeded('rj-wood'); wg2.fillStyle = '#4a3324'; wg2.fillRect(0, 0, 256, 64); for (let y = 0; y < 64; y += 4) { wg2.fillStyle = `rgba(${90 + r3() * 40 | 0},${55 + r3() * 25 | 0},${35 + r3() * 15 | 0},.6)`; wg2.fillRect(0, y, 256, 3); }
+    const woodMat = new THREE.MeshLambertMaterial({ map: texture(wc, true), side: THREE.DoubleSide });
+    group.add(new THREE.Mesh(stripGeometry([[ca, z0], [ca, z0 - cd], [cb, z0 - cd], [cb, z0]], 0, ch, { uScale: 6 }), woodMat));
+    C2.box((ca + cb) / 2, ch + 0.15, z0 - cd / 2, cb - ca + 0.4, 0.3, cd + 0.4, color('#3a3b3e'));
+    C2.box(ca + 9, 1.2, z0 - cd - 0.08, 1.4, 2.4, 0.12, color('#c62b2b'));
+    group.add(C2.mesh());
+    for (const [a, b] of [[ca + 2, ca + 7], [ca + 12, cb - 6], [cb - 5, cb - 1.5]]) { const wm = stripGeometry([[a, z0 - cd - 0.07], [b, z0 - cd - 0.07]], 1.6, 2.8, { uScale: 2 }), wu2 = wm.attributes.uv; for (let i = 0; i < wu2.count; i++) wu2.setY(i, wu2.getY(i) * 0.25); group.add(new THREE.Mesh(wm, glassMat('#ffcf8a', 1, 0.1)));
+      for (let x = a + 1; x < b; x += 2.5) windows.push({ x, y: 2.2, z: z0 - cd - 0.4, c: '#ffd9a0', s: 1.3 }); }
+    rjHall.spec = { x0, x1, z0, z1, gh, ca, cb, cd };
+    occupy(x0 - 2, x1 + 2, z0 - cd - 2, z1 + 2);
+    return wall;
+  }
+
   // Quote della sala a pieghe. Con relative: true i profili sono altezze sopra il muro interno (wallY), così la sala
   // segue le tribune; la volta parte 1,5 m sopra il muro e sale almeno quanto l'arco interno più un metro.
   // topAt(x, z) dà la quota del tetto in ogni punto: sul perimetro è il profilo E.folded.top, dentro una superficie
@@ -1154,10 +1218,11 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
     const RM = new Mesher(), r3 = seeded(A.team + 'units');
     for (let i = 0; i < 8; i++) RM.box(X0 + 12 + r3() * (X1 - X0 - 24), H + 1.2, Z0 + 10 + r3() * (Z1 - Z0 - 20), 4 + r3() * 6, 2.4, 3 + r3() * 4, color(i % 2 ? '#c9ccd0' : '#a3a8ad'));
     roof.add(RM.mesh());
-  } else if (SK) {
+  } else if (SK || E.hipSeams) {
     // Kloten: tetto a padiglione grigio chiaro con le nervature che scendono lungo le falde, gronda larga con l'intradosso
     // scuro, colmo e displuvi coperti da una lamiera più chiara.
-    const o = E.eaves ?? 3, x0 = -EX - pad - o, x1 = EX + pad + o, z0 = -EZn - pad - o, z1 = EZs + pad + o, zc = (z0 + z1) / 2, rise = E.rise ?? 6, hz = (z1 - z0) / 2, xa = x0 + hz * (E.hip ?? 0.9), xb = x1 - hz * (E.hip ?? 0.9), y = H + 0.05;
+    // ridgeAt (Rapperswil): il colmo non sta in mezzo ma verso il retro, così la falda davanti è larga e quella dietro corta.
+    const o = E.eaves ?? 3, x0 = -EX - pad - o, x1 = EX + pad + o, z0 = -EZn - pad - o, z1 = EZs + pad + o, zc = z0 + (z1 - z0) * (E.ridgeAt ?? 0.5), rise = E.rise ?? 6, hz = (z1 - z0) / 2, xa = x0 + hz * (E.hip ?? 0.9), xb = x1 - hz * (E.hip ?? 0.9), y = H + 0.05;
     const [sc2, sg] = canvas(128, 16); sg.fillStyle = '#c3c7cb'; sg.fillRect(0, 0, 128, 16); for (let x = 0; x < 128; x += 16) { sg.fillStyle = 'rgba(80,88,96,.35)'; sg.fillRect(x, 0, 2, 16); sg.fillStyle = 'rgba(255,255,255,.35)'; sg.fillRect(x + 2, 0, 1, 16); }
     const rmat = new THREE.MeshLambertMaterial({ map: texture(sc2, true), side: THREE.DoubleSide });
     const face = (pts, ex, ez) => {
@@ -1169,6 +1234,17 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
     const RM = new Mesher(), edge = color('#d4d7da'), soffC = color('#5d6166'), Wl = [[-EX - pad, -EZn - pad], [EX + pad, -EZn - pad], [EX + pad, EZs + pad], [-EX - pad, EZs + pad]], Ol = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]];
     Ol.forEach((a, i) => { const b = Ol[(i + 1) % 4], c2 = Wl[(i + 1) % 4], d = Wl[i]; RM.quad([a[0], y - 0.5, a[1]], [b[0], y - 0.5, b[1]], [b[0], y, b[1]], [a[0], y, a[1]], edge); RM.quad([a[0], y - 0.5, a[1]], [b[0], y - 0.5, b[1]], [c2[0], y - 0.5, c2[1]], [d[0], y - 0.5, d[1]], soffC); });
     RM.beam(rr, ss, 0.6, edge, 0.3); for (const [p, q] of [[[x0, y, z0], rr], [[x0, y, z1], rr], [[x1, y, z0], ss], [[x1, y, z1], ss]]) RM.beam(p, q, 0.45, edge, 0.25);
+    // roofDetails: campi di pannelli sulla falda davanti, comignoli e impianti su quella dietro, sfiati vicino al colmo.
+    if (E.roofDetails) {
+      const yN = z => y + rise * (z - z0) / (zc - z0), yS = z => y + rise * (z1 - z) / (z1 - zc), xl = z => x0 + (xa - x0) * (z - z0) / (zc - z0), xr = z => x1 - (x1 - xb) * (z - z0) / (zc - z0);
+      const pc = [color('#22324a'), color('#2a3c57')], fr2 = color('#9aa3ab');
+      for (let z = z0 + 3; z + 2.4 < zc - 2; z += 3.2) { const za = z, zb = z + 2.4, xa2 = Math.max(xl(za), xl(zb)) + 3, xb2 = Math.min(xr(za), xr(zb)) - 3;
+        for (let x = xa2; x + 4 < xb2; x += 19.5) { const xe = Math.min(xb2, x + 18); RM.quad([x, yN(za) + 0.14, za], [xe, yN(za) + 0.14, za], [xe, yN(zb) + 0.14, zb], [x, yN(zb) + 0.14, zb], pc[Math.abs((x + z) | 0) % 2]); RM.quad([x, yN(za) + 0.02, za], [xe, yN(za) + 0.02, za], [xe, yN(za) + 0.14, za], [x, yN(za) + 0.14, za], fr2); } }
+      const nC = E.chimneys ?? 6, cc = color('#b9bcc0'), cap = color('#6f7378');
+      for (let i = 0; i < nC; i++) { const x = xa + 4 + i * (xb - xa - 8) / Math.max(1, nC - 1), z = zc + (z1 - zc) * (0.35 + (i % 2) * 0.25), yy = yS(z); RM.box(x, yy + 1.5, z, 1.3, 3, 1.3, cc); RM.box(x, yy + 3.1, z, 1.7, 0.25, 1.7, cap); }
+      for (let i = 0; i < 3; i++) { const x = xa + (xb - xa) * (0.2 + i * 0.3), z = zc + (z1 - zc) * 0.55, yy = yS(z); RM.box(x, yy + 0.9, z, 5, 1.8, 2.8, color('#d4d7da')); RM.box(x, yy + 1.85, z, 4.4, 0.1, 2.2, color('#7b8086')); }
+      for (let i = 0; i < 12; i++) { const x = xa + 2 + i * (xb - xa - 4) / 11, z = zc - 2.5, yy = yN(z); RM.box(x, yy + 0.4, z, 0.5, 0.8, 0.5, color('#c8ccd0')); }
+    }
     roof.add(RM.mesh()); top = y + rise;
   } else if (TS) {
     // Bienne: tetto della sala coperto di file di pannelli solari (corridoio di servizio al centro), una fila di lucernari
@@ -1414,6 +1490,11 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
     const S = zugHall.spec; sign.scale.setScalar(0.8); sign.position.set(S.x0 + 26, S.Hh * 0.62, S.z1 + 0.2);
     const s2 = sign.clone(); s2.scale.setScalar(0.6); s2.rotation.y = -Math.PI / 2; const zm = (S.tz1 + S.z1) / 2; s2.position.set(S.xe - 0.25, S.gH + (S.roofY(S.xe, zm) - S.th2 - S.gH) * 0.55, zm); group.add(s2);
   }
+  if (RJ) {
+    // Rapperswil: scritta scura sul bianco, sul fronte nord sopra la fascia nera e sulla testata est.
+    const S = rjHall.spec; sign.scale.setScalar(1.1); sign.rotation.y = Math.PI; sign.position.set(S.x0 + 26, S.gh + (RJ.band ?? 6.2) + 3.2, S.z0 - 0.15);
+    const s2 = sign.clone(); s2.scale.setScalar(0.85); s2.rotation.y = Math.PI / 2; s2.position.set(S.x1 + 0.15, H * 0.55, (S.z0 + S.z1) / 2); group.add(s2);
+  }
   if (TS) {
     // Bienne: scritta sulla fascia del fianco nord, vicino allo stadio, e sulla fascia della testata dello stadio.
     const { b, fz } = tissotHall.spec; sign.scale.setScalar(0.72); sign.rotation.y = Math.PI; sign.position.set(b.xj + 24, H - fz / 2 + 0.3, b.z0 - 0.15);
@@ -1595,11 +1676,36 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
         const ringPts = roundedRect(xLong ? HL0 + W + 5 : R0 + W + 5, xLong ? R0 + W + 5 : HL0 + W + 5, R0 + W + 5, 16);
         let acc = 0; for (let i = 1; i < ringPts.length; i++) { const [ax, az] = ringPts[i - 1], [bx, bz] = ringPts[i]; acc += Math.hypot(bx - ax, bz - az); if (acc >= 16) { acc = 0; M.box(pl.cx + bx, 5, pl.cz + bz, 0.22, 10, 0.22, color('#7d8186')); M.box(pl.cx + bx, 10.1, pl.cz + bz, 1.2, 0.3, 0.6, color('#5d6166')); lamps.push({ x: pl.cx + bx, y: 10, z: pl.cz + bz, c: '#f4f6ff', s: 2.8 }); pools.push([pl.cx + bx, pl.cz + bz]); } }
       }
+      // details: recinzione con la rete, porte, panchine coperte, piccola tribuna e bandierine d'angolo.
+      if (f.details && f.type === 'pitch') {
+        const FD = new Mesher(), NT = new Mesher(), post = color('#55595e'), white = color('#f4f4f2'), hx = pl.lx / 2 + 5, hz = pl.lz / 2 + 5, fh = 3.2;
+        const rect = [[pl.cx - hx, pl.cz - hz], [pl.cx + hx, pl.cz - hz], [pl.cx + hx, pl.cz + hz], [pl.cx - hx, pl.cz + hz]];
+        rect.forEach((a, i) => { const b = rect[(i + 1) % 4], Ln = Math.hypot(b[0] - a[0], b[1] - a[1]); for (let u = 0; u < Ln; u += 3) { const t0 = u / Ln, t1 = Math.min(1, (u + 3) / Ln), q0 = [a[0] + (b[0] - a[0]) * t0, a[1] + (b[1] - a[1]) * t0], q1 = [a[0] + (b[0] - a[0]) * t1, a[1] + (b[1] - a[1]) * t1];
+          FD.box(q0[0], fh / 2, q0[1], 0.1, fh, 0.1, post); FD.beam([q0[0], fh, q0[1]], [q1[0], fh, q1[1]], 0.05, post); NT.quad([q0[0], 0.05, q0[1]], [q1[0], 0.05, q1[1]], [q1[0], fh, q1[1]], [q0[0], fh, q0[1]], color('#4a5a4a')); } });
+        const gl = (xLong ? pl.lx : pl.lz) / 2;
+        for (const sg of [-1, 1]) { const gx = xLong ? pl.cx + sg * gl : pl.cx, gz = xLong ? pl.cz : pl.cz + sg * gl;
+          for (const o of [-3.66, 3.66]) FD.box(xLong ? gx : gx + o, 1.22, xLong ? gz + o : gz, 0.12, 2.44, 0.12, white);
+          FD.beam([xLong ? gx : gx - 3.66, 2.44, xLong ? gz - 3.66 : gz], [xLong ? gx : gx + 3.66, 2.44, xLong ? gz + 3.66 : gz], 0.12, white);
+          FD.box(xLong ? gx + sg * 1 : gx, 1.2, xLong ? gz : gz + sg * 1, xLong ? 2 : 7.3, 2.4, xLong ? 7.3 : 2, color('#e8e8e4')); }
+        for (const [sx2, sz2] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const fx = pl.cx + sx2 * pl.lx / 2, fz = pl.cz + sz2 * pl.lz / 2; FD.box(fx, 0.75, fz, 0.05, 1.5, 0.05, white); FD.box(fx, 1.4, fz + 0.2, 0.02, 0.3, 0.4, color('#f2c500')); }
+        for (const sg of [-1, 1]) { const bx = xLong ? pl.cx + sg * 8 : pl.cx + pl.lx / 2 + 2.5, bz = xLong ? pl.cz + pl.lz / 2 + 2.5 : pl.cz + sg * 8;
+          FD.box(bx, 0.6, bz, xLong ? 6 : 1.2, 1.2, xLong ? 1.2 : 6, color('#3a3d42')); FD.box(bx, 1.8, bz, xLong ? 6.4 : 1.8, 0.1, xLong ? 1.8 : 6.4, color('#9fc3dc')); }
+        for (let k = 0; k < 5; k++) { const d2 = pl.lz / 2 + 2 + k * 0.9; if (xLong) FD.box(pl.cx, 0.25 + k * 0.42, pl.cz - d2, 30, 0.5, 0.85, color(k % 2 ? '#9a9da2' : '#8a8d91')); else FD.box(pl.cx - pl.lx / 2 - 2 - k * 0.9, 0.25 + k * 0.42, pl.cz, 0.85, 0.5, 30, color(k % 2 ? '#9a9da2' : '#8a8d91')); }
+        group.add(FD.mesh()); group.add(NT.mesh({ transparent: true, opacity: 0.25, depthWrite: false }));
+      }
       const mastH = f.masts ?? (f.type === 'stadium' ? (f.h ?? H) + 6 : 20);
       for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const x = pl.cx + sx * (f.track ? (xLong ? 92 : 56) : pl.lx / 2 + 3), z = pl.cz + sz * (f.track ? (xLong ? 56 : 92) : pl.lz / 2 + 3); M.box(x, mastH / 2, z, f.masts ? 0.9 : 0.5, mastH, f.masts ? 0.9 : 0.5, color('#9a9da2')); if (f.masts) M.box(x, mastH + 1.2, z, 4.5, 2.6, 0.8, color('#d9dbde'), Math.atan2(-sx, -sz)); lamps.push({ x, y: mastH, z, c: '#ffffff', s: f.masts ? 8 : 6 }); }
       occupy(p.cx - p.lx / 2 - (f.track ? 2 : 8), p.cx + p.lx / 2 + (f.track ? 2 : 8), p.cz - p.lz / 2 - (f.track ? 2 : 8), p.cz + p.lz / 2 + (f.track ? 2 : 8));
     } else if (f.type === 'icerink') {
       const w = f.w ?? 30, l = f.len ?? 60, p = place(f, w, l), lx = p.along === 'x' ? l : w, lz = p.along === 'x' ? w : l;
+      // Con y la pista sta su una piattaforma di cemento: basamento con le aperture scure, ringhiera e scala.
+      if (f.y) { const PB = new Mesher(), pc = color('#a3a5a8'), py = f.y, pw2 = lx + 8, pd = lz + 8;
+        PB.box(p.cx, py / 2, p.cz, pw2, py, pd, pc); PB.box(p.cx, py - 0.02, p.cz, pw2 - 0.4, 0.06, pd - 0.4, color('#8a8d91'));
+        for (let u = -pw2 / 2 + 4; u < pw2 / 2 - 3; u += 7) PB.box(p.cx + u, py * 0.45, p.cz + pd / 2 + 0.03, 4, py * 0.6, 0.05, color('#2b2d31'));
+        const rl = [[p.cx - pw2 / 2, p.cz - pd / 2], [p.cx + pw2 / 2, p.cz - pd / 2], [p.cx + pw2 / 2, p.cz + pd / 2], [p.cx - pw2 / 2, p.cz + pd / 2]];
+        rl.forEach((a, i) => { const b = rl[(i + 1) % 4]; PB.beam([a[0], py + 1.05, a[1]], [b[0], py + 1.05, b[1]], 0.06, color('#c8ccd0')); const Ln = Math.hypot(b[0] - a[0], b[1] - a[1]); for (let u2 = 0; u2 <= Ln; u2 += 2.5) PB.box(a[0] + (b[0] - a[0]) * u2 / Ln, py + 0.52, a[1] + (b[1] - a[1]) * u2 / Ln, 0.05, 1.05, 0.05, color('#c8ccd0')); });
+        for (let k2 = 0; k2 < 12; k2++) PB.box(p.cx - pw2 / 2 - 1 - k2 * 0.45, py * (12 - k2) / 12 / 2, p.cz, 0.47, py * (12 - k2) / 12, 3, pc);
+        group.add(PB.mesh()); }
       iceRinkAt(p.cx, p.cz, lx, lz, f);
     } else if (f.type === 'pool') {
       const p = place(f, 26, 50);
@@ -1626,6 +1732,28 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
       } else if (f.top) M.box(p.cx, h + 0.1, p.cz, p.lx - 1, 0.2, p.lz - 1, color(f.top));
       if (f.type !== 'garage') buildingWindows(p.cx, p.cz, p.lx, p.lz, h, 0, 0.3);
       occupy(p.cx - p.lx / 2, p.cx + p.lx / 2, p.cz - p.lz / 2, p.cz + p.lz / 2);
+    } else if (f.type === 'industry') {
+      // Zona industriale (Rapperswil): capannoni bassi e larghi in griglia, grigi e bianchi, alcuni con il tetto a shed o a
+      // falde, piazzali d'asfalto con i camion, qualche ciminiera.
+      const n = f.n ?? 26, spread = f.spread ?? 300, IM = new Mesher(), palI = ['#c9ccd0', '#b3b7bc', '#dfe1e3', '#9aa3ad', '#8d97a3', '#cfc9bd'];
+      for (let i = 0; i < n; i++) {
+        const along = (rand() - 0.5) * spread * 2, out = (f.dist ?? 80) + rand() * (f.depth ?? 160), w = 30 + rand() * 40, d = 22 + rand() * 24, h = 7 + rand() * 6;
+        let x, z; if (f.side === 'north') { x = along; z = Z0 - out; } else if (f.side === 'south') { x = along; z = Zs + out; } else if (f.side === 'west') { x = X0 - out; z = along; } else { x = X1 + out; z = along; }
+        if (occupied.some(q => x + w / 2 + 6 > q[0] && x - w / 2 - 6 < q[1] && z + d / 2 + 6 > q[2] && z - d / 2 - 6 < q[3])) continue;
+        const k = color(palI[(rand() * palI.length) | 0]);
+        IM.box(x, 0.03, z, w + 14, 0.06, d + 14, color('#6f7175'));
+        IM.box(x, h / 2, z, w, h, d, k);
+        const rt = rand();
+        if (rt < 0.35) for (let u = -w / 2 + 3; u < w / 2 - 2; u += 6) { IM.quad([x + u, h, z - d / 2], [x + u, h, z + d / 2], [x + u + 4, h + 2.2, z + d / 2], [x + u + 4, h + 2.2, z - d / 2], color('#e9ecef')); IM.quad([x + u + 4, h + 2.2, z - d / 2], [x + u + 4, h + 2.2, z + d / 2], [x + u + 4, h, z + d / 2], [x + u + 4, h, z - d / 2], color('#7f9db5')); }
+        else if (rt < 0.6) { IM.quad([x - w / 2, h, z - d / 2], [x + w / 2, h, z - d / 2], [x + w / 2, h + 3, z], [x - w / 2, h + 3, z], k.clone().multiplyScalar(0.8)); IM.quad([x + w / 2, h, z + d / 2], [x - w / 2, h, z + d / 2], [x - w / 2, h + 3, z], [x + w / 2, h + 3, z], k.clone().multiplyScalar(0.7)); }
+        else IM.box(x, h + 0.1, z, w - 0.6, 0.2, d - 0.6, color('#8a8d91'));
+        for (let u = -w / 2 + 4; u < w / 2 - 4; u += 8) IM.box(x + u, 2.2, z + d / 2 + 0.05, 4.5, 4.4, 0.1, color('#5b6168'));
+        if (rand() < 0.5) for (let t = 0; t < 2; t++) IM.box(x - w / 2 + 6 + t * 5, 1.6, z + d / 2 + 5, 2.5, 3.2, 12, color(t ? '#f2f2f0' : '#2f5aa8'));
+        if (rand() < 0.15) IM.box(x + w / 2 - 3, h + 8, z - d / 2 + 3, 1.6, 16, 1.6, color('#a0675a'));
+        buildingWindows(x, z, w, d, h, 0, 0.15);
+        occupy(x - w / 2 - 7, x + w / 2 + 7, z - d / 2 - 7, z + d / 2 + 7);
+      }
+      group.add(IM.mesh());
     } else if (f.type === 'castle') {
       // Collina con il castello in cima (Porrentruy): poggio erboso, corpo lungo con tetto a falde, torre tonda e torretta.
       const p = place(f, 200, 200), hh = f.h ?? 30, CM = new Mesher();

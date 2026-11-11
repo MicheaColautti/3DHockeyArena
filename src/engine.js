@@ -7,14 +7,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { TEAMS } from './teams.js?v=173';
-import { ARENAS } from './arenas.js?v=173';
-import { POSITIONS, placeholderLineup } from './lineups.js?v=173';
-import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=173';
-import { iceTexture, boardsTexture, ledTexture, suitesTexture, vipGlassTexture, sloganWallTexture, cornerTowerTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=173';
-import { lambert, disposeObject, makePlayer } from './players.js?v=173';
-import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=173';
-import { buildExterior, octaRoof } from './exterior.js?v=173';
+import { TEAMS } from './teams.js?v=178';
+import { ARENAS } from './arenas.js?v=178';
+import { POSITIONS, placeholderLineup } from './lineups.js?v=178';
+import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=178';
+import { iceTexture, boardsTexture, ledTexture, suitesTexture, vipGlassTexture, sloganWallTexture, cornerTowerTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=178';
+import { lambert, disposeObject, makePlayer } from './players.js?v=178';
+import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=178';
+import { buildExterior, octaRoof } from './exterior.js?v=178';
 
 export { RINK };
 const NEUTRALS = ['#2b2f36', '#3c4048', '#56606b', '#e6e6e6', '#1d2a44', '#5b4636', '#8a8f99', '#1a1a1a', '#6f7f8f', '#a33a3a', '#3f5f3f'];
@@ -306,7 +306,7 @@ export class ArenaView {
       const P = S.profile;
       roofBase = Math.max(roofBase, P.top);
       // Curva in piedi di casa: niente scale tra i settori, solo due passaggi vicino al centro (A.home.aisles).
-      const curveSec = this.isCurve(S), ent = this.entrances(S), vom = ent || (curveSec && S.kind === 'straight' ? this.vomitories(S) : null), cuts = [...zoneCuts(A, S), ...(vom ? vom.cuts : []), ...(S.kind === 'wedge' && S.stair ? [0.47, 0.53] : [])], upperFrom = st.upperSeats ? Math.floor(P.rows.length * st.upperSeats.from) : Infinity, upperC = st.upperSeats && color(st.upperSeats.color);
+      const curveSec = this.isCurve(S), ent = this.entrances(S), vom = ent || (curveSec && S.kind === 'straight' ? this.vomitories(S) : null), cuts = [...zoneCuts(A, S), ...(vom ? vom.cuts : []), ...(S.kind === 'wedge' && S.stair ? [0.47, 0.53] : []), ...(A.vipBoxes && A.vipBoxes.side === S.key ? [A.vipBoxes.from ?? 0.1, A.vipBoxes.to ?? 0.9] : [])], upperFrom = st.upperSeats ? Math.floor(P.rows.length * st.upperSeats.from) : Infinity, upperC = st.upperSeats && color(st.upperSeats.color);
       P.rows.forEach((R, ri) => {
         // Lati con A.sectors: le scale stanno esattamente a 1/n, 2/n... (centrate), non sui tratti da 7 m; via i tagli troppo vicini.
         const sc = this.hasStairs(S) ? this.sectorBounds(S).flatMap(b => [b - 1.1 / S.len, b]) : null;
@@ -339,6 +339,12 @@ export class ArenaView {
             if (!R.first) this.vipFronts.push([a, b, R.below, R.h]);
             else M.quad([a[0], R.below, a[1]], [b[0], R.below, b[1]], [b[0], R.h, b[1]], [a[0], R.h, a[1]], fasciaC);
             if (i % 2 === 0) M.quad([lerp2(a, d, 0.98)[0], R.h, lerp2(a, d, 0.98)[1]], [a[0], R.h, a[1]], [a[0], R.h + 2.6, a[1]], [lerp2(a, d, 0.98)[0], R.h + 2.6, lerp2(a, d, 0.98)[1]], color('#b9bec4'));
+            continue;
+          }
+          // Logge VIP dentro la tribuna (Rapperswil): nelle file della fascia solo il pavimento, la vetrata è disegnata a parte.
+          if (this.inVipBox(S, (ts[i] + ts[i + 1]) / 2, ri)) {
+            M.quad([a[0], R.h, a[1]], [b[0], R.h, b[1]], [c[0], R.h, c[1]], [d[0], R.h, d[1]], floorC);
+            M.quad([a[0], R.below, a[1]], [b[0], R.below, b[1]], [b[0], R.h, b[1]], [a[0], R.h, a[1]], floorC);
             continue;
           }
           // Vomitorio: un'apertura nella gradinata con pavimento scuro e pareti laterali, niente gradini.
@@ -465,6 +471,9 @@ export class ArenaView {
   sectorBounds(S) { const at = this.A.stairs?.[S.key], m = this.A.sectors?.[S.key]; return (at || Array.from({ length: m - 1 }, (_, k) => (k + 1) / m)).map(c => c + 0.55 / S.len); }
   sectorAisleAt(S, t) { return this.sectorBounds(S).some(b => Math.abs(t - b) < 1e-4); }
   sectorAisleNear(S, t) { const ps = t * S.len; return this.sectorBounds(S).some(b => ps > b * S.len - 1.15 && ps <= b * S.len); }
+  // A.vipBoxes = { side, rowFrom, rows, from, to, n }: una fascia di logge vetrate dentro la tribuna, con file di sedili
+  // sopra, sotto e ai lati, divisa in n logge da montanti rossi.
+  inVipBox(S, t, ri) { const V = this.A.vipBoxes; return !!V && S.kind === 'straight' && S.key === V.side && ri >= V.rowFrom && ri < V.rowFrom + V.rows && t > (V.from ?? 0.1) && t < (V.to ?? 0.9); }
   upperAisleAt(S, t) { const n = Math.max(1, Math.round(S.len / 7)), k = t * n, r = Math.round(k); return Math.abs(k - r) < 1e-4 && r > 0 && (r - 1) % this.A.upperAisles === Math.floor(this.A.upperAisles / 2); }
   // Ingressi del secondo anello (Berna, A.entrances { every, color, sides, rows }): aperture nere con le spalle gialle,
   // a passo regolare lungo i lati indicati, qualche fila sopra il fronte dell'anello; fuori dal settore ospiti.
@@ -802,6 +811,20 @@ export class ArenaView {
         const cap = new THREE.Mesh(new THREE.PlaneGeometry(Math.abs(xo - xi), Math.abs(zo - zi)), conc); cap.rotation.x = -Math.PI / 2; cap.position.set((xi + xo) / 2, top, (zi + zo) / 2); this.root.add(cap);
       }
     }
+    // Logge VIP dentro la tribuna: vetrata calda sul fronte della prima fila della fascia, montanti e architrave rosso
+    // scuro, soletta sopra fino alla fila successiva.
+    if (A.vipBoxes) {
+      const V = A.vipBoxes, S = sectionByKey(this.layout, V.side), rows = S.profile.rows.slice(V.rowFrom, V.rowFrom + V.rows), R0 = rows[0], RL = rows.at(-1), t0 = V.from ?? 0.1, t1 = V.to ?? 0.9, n = V.n ?? 8;
+      const fl = readable(sectionLine(S, R0.d - 0.03, t0, t1)); let Lf = 0; for (let i = 1; i < fl.length; i++) Lf += Math.hypot(fl[i][0] - fl[i - 1][0], fl[i][1] - fl[i - 1][1]);
+      this.root.add(new THREE.Mesh(stripGeometry(fl, R0.below, RL.h + 0.1, { uScale: Lf / n }), new THREE.MeshBasicMaterial({ map: vipGlassTexture(), side: THREE.DoubleSide })));
+      const VM = new Mesher(), fr = color(V.frame || '#7a1f24'), slab = color('#3a3c40');
+      this.root.add(new THREE.Mesh(stripGeometry(readable(sectionLine(S, R0.d - 0.06, t0, t1)), RL.h - 0.25, RL.h + 0.12, { uScale: 10 }), new THREE.MeshLambertMaterial({ color: fr, side: THREE.DoubleSide })));
+      for (let k = 0; k <= n; k++) { const t = t0 + (t1 - t0) * k / n, p0 = sectionPoint(S, t, R0.d - 0.06); VM.box(p0.x, (R0.below + RL.h) / 2, p0.z, 0.3, RL.h - R0.below + 0.2, 0.3, fr); }
+      const la = sectionLine(S, R0.d - 0.03, t0, t1), lb = sectionLine(S, RL.d + RL.depth, t0, t1);
+      for (let i = 0; i < la.length - 1; i++) VM.quad([la[i][0], RL.h + 0.12, la[i][1]], [la[i + 1][0], RL.h + 0.12, la[i + 1][1]], [lb[i + 1][0], RL.h + 0.12, lb[i + 1][1]], [lb[i][0], RL.h + 0.12, lb[i][1]], slab);
+      for (const t of [t0, t1]) { const pa = sectionPoint(S, t, R0.d - 0.03), pb = sectionPoint(S, t, RL.d + RL.depth); VM.quad([pa.x, R0.below, pa.z], [pb.x, R0.below, pb.z], [pb.x, RL.h + 0.12, pb.z], [pa.x, RL.h + 0.12, pa.z], color('#c9cbcd')); }
+      this.root.add(VM.mesh());
+    }
     // Anello sospeso sotto le travi (Friburgo): fascia scura con il bordo inferiore luminoso.
     // Cabine vetrate negli angoli (Friburgo): sul corridoio tra i due anelli dei cunei, vetro azzurrino con il telaio chiaro.
     if (X.cornerBoxes) for (const S of sections) {
@@ -902,6 +925,7 @@ export class ArenaView {
           else if (this.isCurve(S) && R.standing) { const v = S.kind === 'straight' && this.vomitories(S); if (v && ri >= v.r0 && ri <= v.r1 && v.at(p.t)) continue; }
           else if (segLen && (R.tier === 0 || !A.upperAisles || Math.floor(p.t * S.len / segLen) % A.upperAisles === Math.floor(A.upperAisles / 2)) && (p.t * S.len) % segLen > segLen - 1.15) continue; // scale tra i settori
           if (A.corners === 'wedge' && S.kind === 'straight' && (p.t * S.len < 0.7 || (1 - p.t) * S.len < 0.7)) continue;
+          if (this.inVipBox(S, p.t, ri)) continue;
           const fy = R.h;
           const zone = zoneAt(A, S, p.t, R);
           const occ = zone === 'curve' ? 0.97 : zone === 'guest' ? 0.92 : zone === 'standing' ? 0.93 : A.occupancy ?? 0.88;
