@@ -330,26 +330,40 @@ export const ARENAS = {
   },
   LHC: {
     team: 'LHC', name: 'Vaudoise aréna', city: 'Losanna', capacity: 9600, opened: 2019,
-    note: 'Corpi bassi e allungati ad angoli smussati con fasce bianche, tetto rosso coperto di pannelli, pista all\'aperto tra gli edifici e i binari lungo un lato. Dentro, tribune rosse ripidissime e travi che si accendono di rosso.',
+    note: 'Due corpi bianchi a L ad angoli arrotondati, uno sopra l\'altro, con il tetto verde coperto di pannelli; nel cortile i cilindri bianchi e la pista all\'aperto, i binari lungo un lato e il Lemano in fondo. Dentro, tribune rosse ripidissime e travi che si accendono di rosso.',
     facts: ['Inaugurata nel 2019', 'Tribune rosse su tutti i lati', 'Pista all\'aperto accanto all\'arena', 'Ospiti nell\'angolo destro della curva opposta'],
     gaps: { side: 2.4, bench: 4.4, end: 3 },
     stands: {
       north: { base: 1.3, tiers: [seated(15, 0.48, 0.82), upper(12, 0.56, 0.8, 'led', { depth: 2, rise: 3 })] },
       south: { base: 1.3, tiers: [seated(15, 0.48, 0.82), upper(12, 0.56, 0.8, 'led', { depth: 2, rise: 3 })] },
-      west: { base: 2.4, tiers: [standing(15, 0.44, 0.54), upper(10, 0.56, 0.8, 'led', { depth: 2, rise: 3 })] },
+      // Curva di casa (Kop) su tutta l'altezza dei due anelli, senza corridoio né striscia LED in mezzo.
+      west: { base: 2.4, tiers: [standing(26, 0.56, 0.68)] },
       east: { base: 2.2, tiers: [seated(13, 0.48, 0.82), upper(10, 0.56, 0.8, 'led', { depth: 2, rise: 3 })] },
     },
-    corners: true,
+    // La curva di casa gira anche negli angoli ovest (profilo della testata), così occupa tutta la parte curva.
+    corners: { west: 'end', east: 'side' },
     home: { side: 'west', tier: 0 },
-    guest: { side: 'east', from: 0.72, to: 1, tier: 0, corner: 'south' },
-    led: { boards: true, rim: true },
+    guest: { side: 'east', from: 0.86, to: 1, tier: 0, corner: 'south', cornerTo: 0.5, rowFrom: 3 },
+    led: { boards: true, rim: true, rimSkip: ['west', 'corner-west-north', 'corner-west-south'] },
     roof: { type: 'flat', clear: 7, color: '#1c1f25', steel: '#2e3138', glow: '#ff2b2b' },
     cube: { w: 8, h: 4.8 },
     style: { concrete: '#4e525a', riser: '#3d4047', wall: '#1f2227', floor: '#1d1f23', seats: ['#b3121e', '#a10f1a'], seatPattern: 'blocks' },
     light: { tint: '#fff2f2', ambient: 0.95, key: 1.15 },
-    exterior: { shape: 'rounded', wall: '#eeece7', facade: 'bands', uScale: 24, roof: 'flat', roofMat: 'terracotta-solar', ground: 'urban', trees: 50, conifers: false, mountains: 16,
-      features: [{ type: 'walkers', side: 'west', dist: 1, w: 8, len: 70, n: 25 }, { type: 'walkers', side: 'south', dist: 2, w: 12, len: 100, n: 45 }, { type: 'rail', side: 'north', dist: 14, tracks: 4 }, { type: 'icerink', side: 'east', dist: 14, w: 30, len: 60 }, { type: 'hall', side: 'east', dist: 52, w: 34, len: 70, h: 14, color: '#eeece7', top: '#a5573a' }, { type: 'road', side: 'south', dist: 16 },
-        { type: 'parking', side: 'west', dist: 10, w: 36, len: 60, cars: 40 }, { type: 'city', side: 'north', dist: 60, n: 40, height: 26 }, { type: 'city', side: 'south', dist: 40, n: 40, height: 22 }, { type: 'city', side: 'west', dist: 70, n: 24, height: 20 }] },
+    // Esterno dalle foto: un'unica L ad angoli arrotondati (anche l'angolo interno): piano terra vetrato arretrato, basamento
+    // bianco con il nastro di finestre, sopra un corpo più piccolo e arretrato a fasce, tetto verde con i pannelli. Nel cortile della L i
+    // cilindri bianchi e gli alberi, sulla punta la pista all'aperto illuminata. Ferrovia lungo il lato lungo (nord),
+    // città tutt'attorno, il Lemano e le Alpi in fondo a sud.
+    exterior: { shape: 'rect', wall: '#efefeb', signColor: '#1f6b45', roofColor: '#7f9a57', ground: 'urban', trees: 40, conifers: false, mountains: 18, mountainDist: 900, haloColor: '#ffe0c0',
+      lshape: { main: { grow: 10, base: 13, glass: 4.5, upper: 26, inset: 6, r: 18, rIn: 12 }, wing: { x: [-56, 0], z: [0, 64], tip: 44 },
+        court: { from: 8, rink: { len: 56, w: 26 } } },
+      features: [{ type: 'walkers', side: 'west', dist: 2, w: 8, len: 70, n: 20 }, { type: 'walkers', side: 'east', dist: 2, w: 10, len: 90, n: 25 },
+        { type: 'road', side: 'north', dist: 4 }, { type: 'rail', side: 'north', dist: 18, tracks: 4, trains: 4, catenary: true }, { type: 'road', side: 'north', dist: 44 },
+        { type: 'road', side: 'east', dist: 10 }, { type: 'road', side: 'south', dist: 8 }, { type: 'road', side: 'west', dist: 8 },
+        { type: 'parking', side: 'west', dist: 22, w: 34, len: 70, cars: 45 },
+        { type: 'city', side: 'north', dist: 60, depth: 260, grid: 30, height: 22, spread: 360 }, { type: 'city', side: 'south', dist: 22, depth: 300, grid: 32, height: 26, spread: 380 },
+        { type: 'city', side: 'east', dist: 26, depth: 240, grid: 30, height: 24, spread: 260 }, { type: 'city', side: 'west', dist: 64, depth: 220, grid: 32, height: 20, spread: 260 },
+        { type: 'tower', side: 'south', dist: 60, offset: 150, w: 22, d: 22, h: 62, lean: 0, tint: '#b9b2a6' }, { type: 'tower', side: 'east', dist: 90, offset: -140, w: 20, d: 20, h: 54, lean: 0, tint: '#a8a49c' },
+        { type: 'lake', side: 'south', dist: 360, w: 2600, len: 4000 }] },
   },
   SCRJ: {
     team: 'SCRJ', name: 'St. Galler Kantonalbank Arena', city: 'Rapperswil-Jona', capacity: 6100, opened: 1987,

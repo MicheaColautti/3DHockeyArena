@@ -7,14 +7,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { TEAMS } from './teams.js?v=109';
-import { ARENAS } from './arenas.js?v=109';
-import { POSITIONS, placeholderLineup } from './lineups.js?v=109';
-import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=109';
-import { iceTexture, boardsTexture, ledTexture, suitesTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=109';
-import { lambert, disposeObject, makePlayer } from './players.js?v=109';
-import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=109';
-import { buildExterior, octaRoof } from './exterior.js?v=109';
+import { TEAMS } from './teams.js?v=115';
+import { ARENAS } from './arenas.js?v=115';
+import { POSITIONS, placeholderLineup } from './lineups.js?v=115';
+import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=115';
+import { iceTexture, boardsTexture, ledTexture, suitesTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=115';
+import { lambert, disposeObject, makePlayer } from './players.js?v=115';
+import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=115';
+import { buildExterior, octaRoof } from './exterior.js?v=115';
 
 export { RINK };
 const NEUTRALS = ['#2b2f36', '#3c4048', '#56606b', '#e6e6e6', '#1d2a44', '#5b4636', '#8a8f99', '#1a1a1a', '#6f7f8f', '#a33a3a', '#3f5f3f'];
@@ -640,7 +640,7 @@ export class ArenaView {
         else if (b.kind === 'team') this.root.add(new THREE.Mesh(stripGeometry(l, b.y0 + 0.3, b.y1 - 0.3, { uScale: 10 }), teamMat));
       }
       // Niente LED in cima alla testata del muro delle nicchie e ai tratti alti che la affiancano (Zurigo).
-      const nicheEnd = A.extras?.nicheWall ? A.extras.nicheWall.side || 'east' : null, noRim = S.hang || (nicheEnd && (S.key === nicheEnd || (S.kind === 'arc' && S.wrap && S.end === nicheEnd)));
+      const nicheEnd = A.extras?.nicheWall ? A.extras.nicheWall.side || 'east' : null, noRim = S.hang || (A.led.rimSkip || []).includes(S.key) || (nicheEnd && (S.key === nicheEnd || (S.kind === 'arc' && S.wrap && S.end === nicheEnd)));
       if (A.led.rim && !noRim) this.root.add(new THREE.Mesh(stripGeometry(readable(sectionLine(S, P.depth - 0.06)), P.top + 0.25, P.top + 1.15, { uScale: 22 }), ledMat));
     }
     // Striscione della curva di casa sul muretto davanti alla prima fila.
