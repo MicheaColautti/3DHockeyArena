@@ -7,14 +7,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { TEAMS } from './teams.js?v=178';
-import { ARENAS } from './arenas.js?v=178';
-import { POSITIONS, placeholderLineup } from './lineups.js?v=178';
-import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=178';
-import { iceTexture, boardsTexture, ledTexture, suitesTexture, vipGlassTexture, sloganWallTexture, cornerTowerTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=178';
-import { lambert, disposeObject, makePlayer } from './players.js?v=178';
-import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=178';
-import { buildExterior, octaRoof } from './exterior.js?v=178';
+import { TEAMS } from './teams.js?v=181';
+import { ARENAS } from './arenas.js?v=181';
+import { POSITIONS, placeholderLineup } from './lineups.js?v=181';
+import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=181';
+import { iceTexture, boardsTexture, ledTexture, suitesTexture, vipGlassTexture, sloganWallTexture, cornerTowerTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=181';
+import { lambert, disposeObject, makePlayer } from './players.js?v=181';
+import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=181';
+import { buildExterior, octaRoof } from './exterior.js?v=181';
 
 export { RINK };
 const NEUTRALS = ['#2b2f36', '#3c4048', '#56606b', '#e6e6e6', '#1d2a44', '#5b4636', '#8a8f99', '#1a1a1a', '#6f7f8f', '#a33a3a', '#3f5f3f'];
@@ -373,13 +373,17 @@ export class ArenaView {
             M.quad([ba[0], R.h, ba[1]], [bb[0], R.h, bb[1]], [bb[0], R.h + 0.42, bb[1]], [ba[0], R.h + 0.42, ba[1]], seat.clone().multiplyScalar(0.78));
           }
           if (up && !R.standing && ri % 3 === 2) M.beam([a[0], R.h + 1, a[1]], [b[0], R.h + 1, b[1]], 0.05, rails);
+          if (P.spec?.tiers[R.tier]?.overhang) {
+            const y = R.h - 0.35;
+            M.quad([d[0], y, d[1]], [c[0], y, c[1]], [b[0], y, b[1]], [a[0], y, a[1]], conc);
+          }
           const front = R.first && R.tier > 0 ? fasciaC : riser;
           M.quad([a[0], R.below, a[1]], [b[0], R.below, b[1]], [b[0], R.h, b[1]], [a[0], R.h, a[1]], ri === 0 ? conc : front);
         }
         // Sezioni appese (anello alto che gira l'angolo, Zurigo): facce di testa solo dalla fila sotto; il lato lungo che
         // prosegue nell'arco appeso (hangEnd) non ha la faccia piena sotto l'anello alto da quella parte.
         if (S.kind === 'arc' && S.capStart) M.quad([inner[0][0], R.below, inner[0][1]], [outer[0][0], R.below, outer[0][1]], [outer[0][0], R.h, outer[0][1]], [inner[0][0], R.h, inner[0][1]], conc);
-        if (S.kind === 'straight') for (const k of [0, inner.length - 1]) { if (S.hang && S.capEnd === false) continue; const y0 = S.hang || (R.tier > 0 && S.hangEnd === (k ? 1 : 0)) ? R.below : 0; M.quad([inner[k][0], y0, inner[k][1]], [outer[k][0], y0, outer[k][1]], [outer[k][0], R.h, outer[k][1]], [inner[k][0], R.h, inner[k][1]], conc); }
+        if (S.kind === 'straight') for (const k of [0, inner.length - 1]) { if (S.hang && S.capEnd === false) continue; const y0 = P.spec?.tiers[R.tier]?.overhang ? R.h - 0.35 : S.hang || (R.tier > 0 && S.hangEnd === (k ? 1 : 0)) ? R.below : 0; M.quad([inner[k][0], y0, inner[k][1]], [outer[k][0], y0, outer[k][1]], [outer[k][0], R.h, outer[k][1]], [inner[k][0], R.h, inner[k][1]], conc); }
         // Cuneo: le due facce verticali del prisma lungo i cateti, a gradini dal pavimento fino alla fila.
         if (S.kind === 'wedge') for (const k of [0, inner.length - 1]) M.quad([inner[k][0], 0, inner[k][1]], [outer[k][0], 0, outer[k][1]], [outer[k][0], R.h, outer[k][1]], [inner[k][0], R.h, inner[k][1]], wedgeFace);
         if (R.standing && ri % 4 === 3) { const l = sectionLine(S, R.d + 0.08); for (let i = 0; i < l.length - 1; i++) M.beam([l[i][0], R.h + 1.0, l[i][1]], [l[i + 1][0], R.h + 1.0, l[i + 1][1]], 0.05, rails); }
@@ -614,7 +618,7 @@ export class ArenaView {
       const N = 28, prof = Array.from({ length: N + 1 }, (_, i) => { const z = -EZn + (EZn + EZs) * i / N; return [z, Y + rise * f((z - zc) / EZ)]; });
       const plank = [roofC.clone().multiplyScalar(1.05), roofC.clone().multiplyScalar(0.93)];
       for (let i = 0; i < N; i++) { const [z0, y0] = prof[i], [z1, y1] = prof[i + 1]; M.quad([-EX, y0, z0], [EX, y0, z0], [EX, y1, z1], [-EX, y1, z1], plank[i % 2]); }
-      const rib = R.type === 'vault' ? steel : roofC.clone().lerp(color('#d29a5c'), 0.45), step = R.type === 'vault' ? 7 : 6, thick = R.type === 'vault' ? 0.45 : 0.5;
+      const rib = R.type === 'vault' ? steel : (R.ribColor ? color(R.ribColor) : roofC.clone().lerp(color('#d29a5c'), 0.45)), step = R.type === 'vault' ? 7 : 6, thick = R.type === 'vault' ? 0.45 : 0.5;
       for (let x = -EX + 2.5; x <= EX - 2; x += step) for (let i = 0; i < N; i++) { const [z0, y0] = prof[i], [z1, y1] = prof[i + 1]; M.beam([x, y0 - 0.6, z0], [x, y1 - 0.6, z1], thick, rib, R.type === 'vault' ? 1.3 : 1.1); }
       for (let i = 0; i <= N; i += 4) M.beam([-EX, prof[i][1] - 1.1, prof[i][0]], [EX, prof[i][1] - 1.1, prof[i][0]], 0.25, rib, 0.35);
       if (R.skylight) { const sk = color('#dfe9f2'); for (const i of [Math.floor(N / 2) - 1, Math.floor(N / 2)]) { const [z0, y0] = prof[i], [z1, y1] = prof[i + 1]; glows.quad([-EX + 3, y0 - 0.05, z0], [EX - 3, y0 - 0.05, z0], [EX - 3, y1 - 0.05, z1], [-EX + 3, y1 - 0.05, z1], sk); } }
@@ -661,6 +665,12 @@ export class ArenaView {
         else if (b.kind === 'white') {
           this.root.add(new THREE.Mesh(stripGeometry(l, b.y1 - 0.75, b.y1 - 0.15, { uScale: 10 }), new THREE.MeshBasicMaterial({ color: '#f3f5f7', side: THREE.DoubleSide })));
           if (A.style.detail) this.root.add(new THREE.Mesh(stripGeometry(readable(sectionLine(S, b.d - 0.07)), b.y1 - 0.95, b.y1 - 0.8, { uScale: 10 }), new THREE.MeshBasicMaterial({ color: A.style.detail, side: THREE.DoubleSide })));
+        }
+        else if (b.kind === 'named' && A.standNames?.[S.key]) {
+          const sign = readable(sectionLine(S, b.d - 0.08, 0.35, 0.65));
+          const width = Math.hypot(sign.at(-1)[0] - sign[0][0], sign.at(-1)[1] - sign[0][1]);
+          const map = bannerTexture(home, A.standNames[S.key], '');
+          this.root.add(new THREE.Mesh(stripGeometry(sign, b.y0 + 0.12, b.y1 - 0.12, { uScale: width }), new THREE.MeshLambertMaterial({ map, side: THREE.DoubleSide })));
         }
         else if (b.kind === 'team') this.root.add(new THREE.Mesh(stripGeometry(l, b.y0 + 0.3, b.y1 - 0.3, { uScale: 10 }), teamMat));
       }
@@ -800,12 +810,13 @@ export class ArenaView {
     }
     // Torri d'angolo (Porrentruy): con gli angoli aperti, ogni quadrato vuoto tra testata e lato lungo è una torre di
     // cemento fino al tetto, con le aperture sovrapposte rivolte verso la pista sulle due facce interne.
-    if (X.cornerTowers && !A.corners) {
-      const CT = X.cornerTowers, { ex, zn, zs, profiles: PR } = this.layout, top = this.roofY - 0.2, mat = new THREE.MeshLambertMaterial({ map: cornerTowerTexture(CT.levels ?? 3), side: THREE.DoubleSide });
+    if (X.cornerTowers && (!A.corners || X.cornerTowers.end)) {
+      const CT = X.cornerTowers, { ex, zn, zs, profiles: PR } = this.layout, top = CT.height ?? this.roofY - 0.2, mat = new THREE.MeshLambertMaterial({ map: cornerTowerTexture(CT.levels ?? 3), side: THREE.DoubleSide });
       const conc = new THREE.MeshLambertMaterial({ color: '#a9a9a4', side: THREE.DoubleSide }), o = 0.12;
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+        if (CT.end && CT.end !== (sx < 0 ? 'west' : 'east')) continue;
         const De = PR[sx < 0 ? 'west' : 'east'].depth, Ds = PR[sz < 0 ? 'north' : 'south'].depth, zf = sz < 0 ? zn : zs;
-        const xi = sx * (ex + o), xo = sx * (ex + De), zi = sz * (zf + o), zo = sz * (zf + Ds);
+        const xi = sx * (ex + (CT.width ? Math.max(o, De - CT.width) : o)), xo = sx * (ex + De), zi = sz * (zf + (CT.width ? Math.max(o, Ds - CT.width) : o)), zo = sz * (zf + Ds);
         this.root.add(new THREE.Mesh(stripGeometry([[xi, zo], [xi, zi]], 0, top, { uScale: Math.abs(zo - zi) }), mat));
         this.root.add(new THREE.Mesh(stripGeometry([[xi, zi], [xo, zi]], 0, top, { uScale: Math.abs(xo - xi) }), mat));
         const cap = new THREE.Mesh(new THREE.PlaneGeometry(Math.abs(xo - xi), Math.abs(zo - zi)), conc); cap.rotation.x = -Math.PI / 2; cap.position.set((xi + xo) / 2, top, (zi + zo) / 2); this.root.add(cap);
@@ -1173,7 +1184,8 @@ export class ArenaView {
       const el = (now - this.intro.start) / 1000, R = Math.max(this.extent.EX, this.extent.EZ) * 3.1, k = ease(Math.min(1, el / 9));
       const k2 = ease(THREE.MathUtils.clamp((el - INTRO.day) / (INTRO.dusk + 5), 0, 1));
       this.setNight(THREE.MathUtils.smoothstep(el, INTRO.day, INTRO.day + INTRO.dusk));
-      const a = -0.6 + el * 0.07, r = R * (1.5 - 0.5 * k - 0.16 * k2), h = R * (0.95 - 0.45 * k - 0.2 * k2);
+      // A.introAngle: da dove parte il giro (di norma -0,6, cioè da nord-est).
+      const a = (this.A.introAngle ?? -0.6) + el * 0.07, r = R * (1.5 - 0.5 * k - 0.16 * k2), h = R * (0.95 - 0.45 * k - 0.2 * k2);
       this.camera.position.set(Math.cos(a) * r, h, Math.sin(a) * r * 0.92); this.target.set(0, this.roofY * (0.35 - 0.12 * k2), 0); this.camera.lookAt(this.target);
     } else if (this.mode === 'tour') {
       if (!this.tour.paused) this.tour.angle += dt * 0.085;

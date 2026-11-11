@@ -2,7 +2,7 @@
 // Convenzione: x lungo la pista, z in larghezza. Nord = z < 0 (lato lontano dalla telecamera), sud = z > 0 (panchine).
 // Ovest = x < 0, est = x > 0. Lungo una sezione t va da 0 a 1: da ovest a est sui lati lunghi, da nord a sud sui lati corti.
 
-import { RINK } from './common.js?v=178';
+import { RINK } from './common.js?v=181';
 
 export const SIDES = ['north', 'south', 'west', 'east'];
 
@@ -12,7 +12,11 @@ export function makeProfile(spec) {
   let d = 0, last = 0;
   spec.tiers.forEach((t, ti) => {
     let top = base, below = 0;
-    if (ti > 0) {
+    if (t.overhang) {
+      d -= t.overhang;
+      top = last + t.clearance;
+      below = top - 0.35;
+    } else if (ti > 0) {
       const gd = t.gap?.depth ?? 1.8, gr = t.gap?.rise ?? 2.6;
       floors.push({ d0: d, d1: d + gd, h: last }); d += gd;
       bands.push({ d, y0: last, y1: last + gr, kind: t.fascia || 'plain', tier: ti });
@@ -30,7 +34,7 @@ export function makeProfile(spec) {
 // Altezza della fila a distanza d (utile per piazzare telecamere sopra il pubblico).
 export function heightAt(P, d) {
   let h = P.base;
-  for (const R of P.rows) { if (R.d > d) break; h = R.h; }
+  for (const R of P.rows) { if (R.d <= d) h = Math.max(h, R.h); }
   return h;
 }
 
@@ -59,8 +63,8 @@ export function buildLayout(A) {
   // sidesTo: ['east'] = i lati lunghi proseguono dritti fino in fondo alla testata (oltre la sua tribuna), che sta tra
   // loro con gli angoli a squadra (Zurigo: le tribune laterali arrivano al muro delle nicchie).
   const to = k => (A.sidesTo || []).includes(k) && !corners[k] ? P[k].depth : 0;
-  const x0 = corners.west ? -cx : -ex - to('west'), x1 = corners.east ? cx : ex + to('east');
-  const end = key => { const c = corners[key]; return { z0: c ? -cz : -zn, z1: c ? cz : zs }; };
+  const x0 = corners.west ? -cx : -ex - to('west'), x1 = corners.east === 'short' ? ex - 2 : corners.east ? cx : ex + to('east');
+  const end = key => { const c = corners[key]; if (c === 'short') return { z0: -zn + 2, z1: zs - 2 }; return { z0: c ? -cz : -zn, z1: c ? cz : zs }; };
   const W = end('west'), E = end('east');
   const sections = [
     { key: 'north', kind: 'straight', ox: (x0 + x1) / 2, oz: -zn, dx: 1, dz: 0, nx: 0, nz: -1, len: x1 - x0, profile: P.north },
@@ -73,7 +77,8 @@ export function buildLayout(A) {
     if (!mode) continue;
     const a0 = Math.atan2(0, sx); let a1 = Math.atan2(sz, 0);
     if (Math.abs(a1 - a0) > Math.PI) a1 += a1 < a0 ? 2 * Math.PI : -2 * Math.PI;
-    sections.push({ key: `corner-${endKey}-${side}`, kind: 'arc', cx: sx * cx, cz: sz * cz, rx: ex - cx, rz: (sz < 0 ? zn : zs) - cz, a0, a1, end: endKey, side, wrap: mode === 'end', profile: mode === 'end' ? P[endKey] : P[side], chamfer: A.cornerStyle === 'chamfer', chamferFrom: ((mode === 'end' ? P[endKey] : P[side]).bands[0]?.d ?? 0) - 0.01 });
+    const short = mode === 'short', zEdge = sz < 0 ? zn : zs;
+    sections.push({ key: `corner-${endKey}-${side}`, kind: 'arc', cx: sx * (short ? ex - 2 : cx), cz: sz * (short ? zEdge - 2 : cz), rx: short ? 2 : ex - cx, rz: short ? 2 : zEdge - cz, a0, a1, end: endKey, side, wrap: mode === 'end', profile: short ? makeProfile({ base: P[endKey].base, tiers: [A.stands[endKey].tiers[0]] }) : mode === 'end' ? P[endKey] : P[side], chamfer: A.cornerStyle === 'chamfer', chamferFrom: ((mode === 'end' ? P[endKey] : P[side]).bands[0]?.d ?? 0) - 0.01 });
   }
   // upperArc (Zurigo): l'anello superiore dei lati lunghi gira sopra l'angolo curvo del primo anello e prosegue lungo la
   // testata, a scalare. Ogni fila è una sezione appesa (hang) a sé: la prima fa il giro completo (arco + tratto dritto
