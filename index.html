@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="it">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Arena 3D · Formazioni</title>
-<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-<style>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Arena 3D · Formazioni</title>
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+    <style>
 :root{--ink:#182c2c;--muted:#5f716f;--lime:#d2f277;--green:#122b2b;--line:rgba(24,44,44,.12);--glass:rgba(255,255,255,.92);--shadow:0 10px 28px rgba(10,20,30,.28),0 1px 2px rgba(10,20,30,.15);--r:16px;--gap:14px;--font:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:#15181d;color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased}
@@ -152,62 +152,71 @@ button,select{font:inherit;color:inherit}
   .teams{grid-template-columns:1fr}
 }
 </style>
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
-</head>
-<body>
-<div class="app" id="app">
-  <div class="stage">
-    <canvas id="stage" aria-label="Arena 3D"></canvas>
-    <div id="labels"></div>
-    <div class="loading" id="loading"><span class="panel">Costruisco l'arena…</span></div>
-  </div>
+    <script
+      type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+  </head>
+  <body>
+    <div class="app" id="app">
+      <div class="stage">
+        <canvas id="stage" aria-label="Arena 3D"></canvas>
+        <div id="labels"></div>
+        <div class="loading" id="loading"><span class="panel">Costruisco
+            l'arena…</span></div>
+      </div>
 
-  <header class="top">
-    <div class="pick panel">
-      <div class="mark">3D</div>
-      <div class="select"><img id="homeLogo" alt=""><select id="arena" aria-label="Arena e squadra di casa"></select></div>
-      <span class="vs">vs</span>
-      <div class="select"><img id="awayLogo" alt=""><select id="away" aria-label="Squadra ospite"></select></div>
+      <header class="top">
+        <div class="pick panel">
+          <div class="mark">3D</div>
+          <div class="select"><img id="homeLogo" alt><select id="arena"
+              aria-label="Arena e squadra di casa"></select></div>
+          <span class="vs">vs</span>
+          <div class="select"><img id="awayLogo" alt><select id="away"
+              aria-label="Squadra ospite"></select></div>
+        </div>
+        <nav class="modes panel" id="modes" aria-label="Regia">
+          <button data-mode="intro">Intro</button>
+          <button data-mode="lineup">Formazioni</button>
+          <button data-mode="tour">Tour</button>
+          <button data-mode="explore">Esplora</button>
+        </nav>
+      </header>
+
+      <section class="intro panel" id="intro" hidden></section>
+
+      <section class="board panel" id="board" hidden>
+        <div class="board-head">
+          <div><div class="eyebrow">Formazioni</div><h2
+              id="boardTitle"></h2></div>
+          <div class="seg" id="lines" role="group"
+            aria-label="Linea in pista"></div>
+        </div>
+        <div class="teams" id="teams"></div>
+      </section>
+
+      <div class="cards" id="cards" hidden></div>
+      <section class="toast panel" id="toast" hidden></section>
+      <div class="tourctl panel" id="tourctl" hidden>
+        <div class="dots" id="dots"></div>
+        <button id="pause">❚❚ Pausa</button>
+      </div>
+
+      <section class="explore panel" id="explore" hidden>
+        <div class="seg" id="views"><button
+            data-view="tribuna">Tribuna</button><button
+            data-view="alto">Dall'alto</button><button
+            data-view="diorama">Diorama</button></div>
+        <label><input type="checkbox" id="names" checked> Nomi</label>
+        <label><input type="checkbox" id="rotate"> Rotazione</label>
+        <p>Trascina per ruotare · rotella o pizzico per lo zoom</p>
+      </section>
     </div>
-    <nav class="modes panel" id="modes" aria-label="Regia">
-      <button data-mode="intro">Intro</button>
-      <button data-mode="lineup">Formazioni</button>
-      <button data-mode="tour">Tour</button>
-      <button data-mode="explore">Esplora</button>
-    </nav>
-  </header>
 
-  <section class="intro panel" id="intro" hidden></section>
-
-  <section class="board panel" id="board" hidden>
-    <div class="board-head">
-      <div><div class="eyebrow">Formazioni</div><h2 id="boardTitle"></h2></div>
-      <div class="seg" id="lines" role="group" aria-label="Linea in pista"></div>
-    </div>
-    <div class="teams" id="teams"></div>
-  </section>
-
-  <div class="cards" id="cards" hidden></div>
-  <section class="toast panel" id="toast" hidden></section>
-  <div class="tourctl panel" id="tourctl" hidden>
-    <div class="dots" id="dots"></div>
-    <button id="pause">❚❚ Pausa</button>
-  </div>
-
-  <section class="explore panel" id="explore" hidden>
-    <div class="seg" id="views"><button data-view="tribuna">Tribuna</button><button data-view="alto">Dall'alto</button><button data-view="diorama">Diorama</button></div>
-    <label><input type="checkbox" id="names" checked> Nomi</label>
-    <label><input type="checkbox" id="rotate"> Rotazione</label>
-    <p>Trascina per ruotare · rotella o pizzico per lo zoom</p>
-  </section>
-</div>
-
-<script type="module">
-import { ArenaView } from './src/engine.js?v=181';
-import { ARENAS, ARENA_IDS } from './src/arenas.js?v=181';
-import { TEAMS, LOGO_DIR } from './src/teams.js?v=181';
-import { POSITIONS, POSITION_SHORT } from './src/lineups.js?v=181';
-import { makeStats } from './src/stats.js?v=181';
+    <script type="module">
+import { ArenaView } from './src/engine.js?v=184';
+import { ARENAS, ARENA_IDS } from './src/arenas.js?v=184';
+import { TEAMS, LOGO_DIR } from './src/teams.js?v=184';
+import { POSITIONS, POSITION_SHORT } from './src/lineups.js?v=184';
+import { makeStats } from './src/stats.js?v=184';
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -389,5 +398,5 @@ addEventListener('keydown', e => {
 
 load();
 </script>
-</body>
+  </body>
 </html>

@@ -123,7 +123,7 @@ Fonte: cartella di foto e piantine annotate raccolta per ogni arena (esterni, in
 | Tissot Arena | Angolo destro della curva opposta, in piedi dietro il vetro | Tribune grigie, travi metalliche | Complesso allungato con lo stadio di calcio, volumi bianchi spigolosi lungo il fianco |
 | VAT Arena | Settore S12 (lato lungo principale, verso est) | Volte incrociate in legno, sedili blu | Falde incrociate innevate, timpani vetrati dorati di sera, pista all'aperto |
 | BCF Arena | Angolo destro della curva opposta | Gradinate scure, anello luminoso sospeso | Due scatole sovrapposte a rete metallica a rombi, blu di sera con linea ambra |
-| Vernets | Testata opposta, angolo verso il lato lungo lontano | Travi scure e doghe chiare | Tetto chiaro sporgente su puntoni inclinati, vetrate, parcheggio davanti |
+| Vernets | Testata opposta, settore ospiti nell'angolo nord verso il lato lungo lontano (piantina annotata) | Travi scure e doghe chiare | Tetto chiaro sporgente su puntoni inclinati, vetrate, parcheggio davanti |
 | Stimo Arena | Invariato (lato corto in piedi diviso con la curva di casa) | Sedili blu, file alte rosse | Tetto a padiglione grigio, corpo basso con terrazza, bosco |
 | Emmental Versicherung Arena | Stehplatz Gast nell'angolo della curva opposta (W3) | Archi in legno chiaro | Lato lungo a montanti sottili, tetto scuro convesso con pannelli, corpo basso con tetto verde, versante boscoso |
 | Vaudoise aréna | Spicchio destro della curva opposta, sull'angolo | Sedili rossi, travi accese di rosso | Corpi bassi arrotondati a fasce bianche, tetto rosso con pannelli, pista all'aperto, binari |

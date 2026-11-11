@@ -4,8 +4,8 @@
 // finisce nella lista `night` restituita, e la vista ne regola l'intensità durante il tramonto.
 
 import * as THREE from 'three';
-import { TEAMS } from './teams.js?v=181';
-import { seeded, color, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect } from './common.js?v=181';
+import { TEAMS } from './teams.js?v=184';
+import { seeded, color, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect } from './common.js?v=184';
 
 const pick3 = (rand, list) => list[Math.floor(rand() * list.length)];
 const GROUND = { urban: '#8e8f88', alpine: '#6f8a55', grass: '#79925a', snow: '#e6ebf0' };
@@ -454,6 +454,34 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
   else if (SK) facade = stimoHall();
   else if (RJ) facade = rjHall();
   else if (EM) facade = emmentalHall();
+  else if (E.vernets) {
+    const glass = nightMat(new THREE.MeshLambertMaterial({ map: glazingTexture(), emissiveMap: glazingNightTexture('#ffdc9b'), emissive: color('#ffffff'), side: THREE.DoubleSide }), 0.85);
+    facade = new THREE.Group();
+    const rim = new Mesher(), white = color('#e5e2d9');
+    const roofBase = p => canopyHeight(p[0], p[1]) - E.canopy.thick + 0.06;
+    const southSill = 3.35;
+    facade.add(new THREE.Mesh(stripGeometry([[X0, Z0], [X1, Z0]], 0, roofBase, { uScale: 17 }), glass));
+    facade.add(new THREE.Mesh(stripGeometry([[X0, Z1], [X1, Z1]], 0, southSill, { uScale: 17 }), glass));
+    facade.add(new THREE.Mesh(
+      stripGeometry([[X0, Z1 + 0.08], [X1, Z1 + 0.08]], southSill, roofBase, { uScale: 17 }),
+      new THREE.MeshLambertMaterial({ color: color('#a5a39d'), side: THREE.DoubleSide })
+    ));
+    // In sezione la lama bianca parte alta e sporgente sul piazzale
+    // e si assottiglia verso il piede della vetrata laterale.
+    const nose = Z1 + E.canopy.out.south, foot = Z1 - (Z1 - Z0) * 0.49;
+    const sill = z => 1.1 + Math.max(0, (z - foot) / (nose - foot)) * (H * 0.83);
+    for (const [x, direction] of [[X0, -1], [X1, 1]]) {
+      const face = x + direction * 0.2;
+      const outline = [[x, Z0], [x, foot], [x, Z1], [x, nose]];
+      facade.add(new THREE.Mesh(stripGeometry(outline, p => sill(p[1]), roofBase, { uScale: 17 }), glass));
+      const high = sill(nose), low = sill(foot);
+      rim.quad([face, low, foot], [face, high, nose], [face, high - 2.1, nose], [face, 0.3, foot], white);
+      rim.quad([face, high - 2.1, nose], [face, 0.3, foot], [x - direction * 0.75, 0.3, foot], [x - direction * 0.75, high - 2.1, nose], white);
+      rim.quad([face, high - 2.1, nose], [face, high, nose], [x - direction * 0.75, high, nose], [x - direction * 0.75, high - 2.1, nose], white);
+    }
+    facade.add(rim.mesh());
+    group.add(facade);
+  }
   else { facade = new THREE.Mesh(stripGeometry(fp, 0, H, { closed: true, uScale }), facMat); group.add(facade); }
 
   // Davos: base ottagonale vetrata (di sera dorata) con una gronda bianca tutt'attorno; sopra, arretrata, la sala coperta
@@ -1249,6 +1277,13 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
     group.add(M.mesh());
   }
 
+  function canopyHeight(x, z) {
+    const C = E.canopy || {}, o = C.out || {};
+    const u = (x - X0 + (o.west || 0)) / (X1 - X0 + (o.west || 0) + (o.east || 0));
+    const v = (z - Z0 + (o.north || 0)) / (Z1 - Z0 + (o.north || 0) + (o.south || 0));
+    return H + 0.3 + v * ((C.tilt || 0) + u * (C.lift || 0));
+  }
+
   // Tetto.
   const roof = new THREE.Group(); group.add(roof);
   const kind = E.roof || 'flat', mat = E.roofMat || 'membrane';
@@ -1514,7 +1549,7 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
     // Grande lastra sporgente (Zugo, Ginevra): può alzarsi verso un angolo; puntoni inclinati davanti alle facciate.
     const C = E.canopy || {}, o = { north: 0, south: 0, west: 0, east: 0, ...(C.out || {}) }, th = C.thick ?? 1.4;
     const x0 = X0 - o.west, x1 = X1 + o.east, z0 = Z0 - o.north, z1 = Z1 + o.south;
-    const lift = (x, z) => H + 0.3 + (C.lift ?? 0) * ((x - x0) / (x1 - x0)) * ((z - z0) / (z1 - z0)) + (C.tilt ?? 0) * ((z - z0) / (z1 - z0));
+    const lift = canopyHeight;
     const M = new Mesher(), k = color(E.roofColor || '#d4d6d8'), under = k.clone().multiplyScalar(0.62), N = 8;
     for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
       const a0 = x0 + (x1 - x0) * i / N, a1 = x0 + (x1 - x0) * (i + 1) / N, b0 = z0 + (z1 - z0) * j / N, b1 = z0 + (z1 - z0) * (j + 1) / N;
@@ -1523,13 +1558,48 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
     }
     const edge = k.clone().multiplyScalar(0.85), ring = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]];
     ring.forEach((p, i) => { const q = ring[(i + 1) % 4]; M.quad([p[0], lift(p[0], p[1]) - th, p[1]], [q[0], lift(q[0], q[1]) - th, q[1]], [q[0], lift(q[0], q[1]), q[1]], [p[0], lift(p[0], p[1]), p[1]], edge); });
+    if (E.vernets) {
+      const stone = color('#d8d4cb'), metal = color('#717b80'), claret = color('#83354a');
+      const width = X1 - X0;
+      // Una mensola per campata: piede sulla pensilina, gomito e puntone sotto lo sbalzo.
+      for (let n = 0; n <= 14; n++) {
+        const x = X0 + 1 + (width - 2) * n / 14, y = lift(x, z1) - th;
+        M.beam([x, 3.35, Z1 + 0.45], [x, y * 0.69, Z1 + 1.35], 0.82, stone, 1.05);
+        M.beam([x, y * 0.69, Z1 + 1.35], [x, y, z1 - 0.28], 1.05, stone, 1.2);
+        if (n % 2) M.quad([x, y - 0.25, z1 - 0.5], [x, y - 0.25, z1 - 2.4], [x, y - 2.5, z1 - 1.75], [x, y - 2, z1 - 0.5], claret);
+      }
+      M.box(0, 3.5, Z1 + 1.6, width, 0.35, 3.6, stone);
+      for (let n = 0; n < 9; n++) {
+        const x = X0 + width * (n + 0.5) / 9;
+        for (const dx of [-1.5, 0, 1.5]) M.box(x + dx, 1.6, Z1 + 0.11, 0.12, 3.2, 0.18, metal);
+        M.box(x, 3.1, Z1 + 0.12, 3.15, 0.18, 0.2, metal);
+      }
+      for (const x of [X0 + 14, X1 - 14]) {
+        M.box(x, 3.25, Z0 - 1.3, 10, 0.28, 3, metal);
+        for (const dx of [-4, 4]) M.box(x + dx, 1.6, Z0 - 2.4, 0.18, 3.2, 0.18, metal);
+      }
+      // Ciminiera rettangolare accanto alla sala tecnica sulla testata est.
+      M.box(X1 + 4.8, 14, Z0 + 8, 3.3, 28, 3.7, stone);
+      M.box(X1 + 4.8, 28.1, Z0 + 8, 3.5, 0.35, 3.9, metal);
+      for (let n = 1; n <= 8; n++) {
+        const x = X0 + width * n / 9, z = Z0 + (Z1 - Z0) * 0.48, y = lift(x, z);
+        M.box(x, y + 0.38, z, 0.85, 0.86, 0.9, metal);
+        M.box(x, y + 0.86, z, 1.18, 0.18, 1.2, stone);
+      }
+      for (const x of [X0 + 13, X0 + 19]) M.box(x, lift(x, Z0 + 9) + 0.43, Z0 + 9, 3.6, 1.3, 2.6, metal);
+      for (let n = 0; n < 6; n++) {
+        const x = X1 - 28 + n * 3.4, z = Z0 + 12;
+        const point = (dx, dz) => [x + dx, lift(x + dx, z + dz) + 0.18, z + dz];
+        M.quad(point(0, 0), point(0, 4), point(3.2, 4), point(3.2, 0), color('#384c59'));
+      }
+    }
     if (C.struts) {
       const strut = color(C.strutColor || '#cfcac0');
       for (const side of ['north', 'south']) { if (!o[side]) continue; const zf = side === 'north' ? Z0 : Z1, ze = side === 'north' ? z0 + 0.6 : z1 - 0.6; for (let x = X0 + 3; x < X1 - 1; x += 6.5) M.beam([x, 0, zf + (side === 'north' ? -0.4 : 0.4)], [x + 2.5, lift(x, ze) - th, ze], 0.55, strut, 0.9); }
     }
     roof.add(M.mesh({ flatShading: true })); top = H + (C.lift ?? 0) + (C.tilt ?? 0);
     // Fascia vetrata scura che chiude lo spazio tra facciata e lastra dove la copertura si alza.
-    roof.add(new THREE.Mesh(stripGeometry(fp, H - 0.2, p => Math.max(H, lift(p[0], p[1]) - th + 0.1), { closed: true }), nightMat(new THREE.MeshLambertMaterial({ color: '#28323b', emissive: color('#ffd7a0'), emissiveIntensity: 0, side: THREE.DoubleSide }), 0.35)));
+    if (!E.vernets) roof.add(new THREE.Mesh(stripGeometry(fp, H - 0.2, p => Math.max(H, lift(p[0], p[1]) - th + 0.1), { closed: true }), nightMat(new THREE.MeshLambertMaterial({ color: '#28323b', emissive: color('#ffd7a0'), emissiveIntensity: 0, side: THREE.DoubleSide }), 0.35)));
   } else {
     flatTop(fp, H + 0.02, mat); parapet(fp, H, H + 0.7);
     if (kind === 'shed') {
