@@ -4,8 +4,8 @@
 // finisce nella lista `night` restituita, e la vista ne regola l'intensità durante il tramonto.
 
 import * as THREE from 'three';
-import { TEAMS } from './teams.js?v=140';
-import { seeded, color, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect } from './common.js?v=140';
+import { TEAMS } from './teams.js?v=157';
+import { seeded, color, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect } from './common.js?v=157';
 
 const pick3 = (rand, list) => list[Math.floor(rand() * list.length)];
 const GROUND = { urban: '#8e8f88', alpine: '#6f8a55', grass: '#79925a', snow: '#e6ebf0' };
@@ -311,7 +311,9 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
   const lsWing = LS?.wing ? { x0: lsMain.x1 + LS.wing.x[0], x1: lsMain.x1 + LS.wing.x[1], z0: lsMain.z1 + LS.wing.z[0], z1: lsMain.z1 + LS.wing.z[1] } : null, lsTip = lsWing ? LS.wing.tip ?? 0 : 0;
   // Zugo (zug): il tetto sporge a ovest sul piazzale e oltre c'è la torre; i dintorni partono dalla torre.
   const ZG = E.zug, zgW = ZG ? (ZG.over ?? 40) + (ZG.towerGap ?? 2) + (ZG.towerW ?? 26) + 4 : 0;
-  const out = !!E.octaStar, X0 = out ? Math.min(...fp.map(q => q[0])) : Math.min(-EX - pad - cW - zgW, lsWing ? lsWing.x0 : Infinity), X1 = out ? Math.max(...fp.map(q => q[0])) : Math.max(EX + pad + cE, lsWing ? lsWing.x1 : -Infinity), Z0 = out ? Math.min(...fp.map(q => q[1])) : Math.min(-EZn - pad, lsWing ? lsWing.z0 : Infinity), Z1 = out ? Math.max(...fp.map(q => q[1])) : Math.max(EZs + pad, lsWing ? lsWing.z1 + lsTip : -Infinity);
+  // Bienne (tissot): stabile lungo e largo `width`, con lo stadio (lungo `stadiumLen`) a ovest della sala; xj = giunto.
+  const TS = E.tissot, tsBox = TS ? (() => { const W = TS.width ?? 104, zc = (EZs - EZn) / 2, xj = -EX - pad - (TS.gap ?? 4); return { x0: xj - (TS.stadiumLen ?? 140), xj, x1: EX + pad + (TS.endPad ?? 4), z0: zc - W / 2, z1: zc + W / 2, zc }; })() : null;
+  const out = !!E.octaStar, X0 = out ? Math.min(...fp.map(q => q[0])) : Math.min(-EX - pad - cW - zgW, lsWing ? lsWing.x0 : Infinity, tsBox ? tsBox.x0 : Infinity), X1 = out ? Math.max(...fp.map(q => q[0])) : Math.max(EX + pad + cE, lsWing ? lsWing.x1 : -Infinity, tsBox ? tsBox.x1 : -Infinity), Z0 = out ? Math.min(...fp.map(q => q[1])) : Math.min(-EZn - pad, lsWing ? lsWing.z0 : Infinity, tsBox ? tsBox.z0 : Infinity), Z1 = out ? Math.max(...fp.map(q => q[1])) : Math.max(EZs + pad, lsWing ? lsWing.z1 + lsTip : -Infinity, tsBox ? tsBox.z1 : -Infinity);
   const H = E.height ?? (E.octaStar ? E.octaStar.base ?? 7 : E.roof === 'star' && E.eaves ? E.eaves : roofY + (E.parapet ?? 1.5));
   // Blocco uffici addossato al lato sud (Berna): il terreno attorno, il piazzale e i dintorni partono dal suo fronte.
   const BK = E.block, Zs = Z1 + (BK ? BK.depth ?? 18 : 0);
@@ -428,6 +430,7 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
   else if (CT) facade = curtainHall();
   else if (LS) facade = lHall();
   else if (ZG) facade = zugHall();
+  else if (TS) facade = tissotHall();
   else { facade = new THREE.Mesh(stripGeometry(fp, 0, H, { closed: true, uScale }), facMat); group.add(facade); }
 
   // Davos: base ottagonale vetrata (di sera dorata) con una gronda bianca tutt'attorno; sopra, arretrata, la sala coperta
@@ -815,6 +818,95 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
     return wall;
   }
 
+  // Bienne (tissot): un unico stabile lungo e largo uguale per tutta la lunghezza. A est la sala della pista, coperta da
+  // un tetto pieno di pannelli solari; a ovest lo stadio di calcio, dove il tetto si riduce a un anello attorno al campo
+  // aperto, con i pali dei fari inclinati verso il campo. In alto una fascia color champagne che sporge su tutto il
+  // perimetro; sotto, pareti grigie a nastri vetrati, arretrate sui lati lunghi; in alto sulle due testate un nastro di
+  // finestre illuminate. Lungo il fianco nord (verso la strada) un basamento a tetto verde interrotto dai cunei bianchi
+  // delle scale. Il tetto della sala (con i pannelli) si costruisce più avanti, nel gruppo del tetto.
+  function tissotHall() {
+    const T = TS, b = tsBox, fz = T.fascia ?? 3.6, ins = T.inset ?? 4, ie = T.insetEnd ?? 1.5, gH = 4.4, yF = H - fz;
+    const R = [[b.x0, b.z0], [b.x1, b.z0], [b.x1, b.z1], [b.x0, b.z1]];
+    const Wl = [[b.x0 + ie, b.z0 + ins], [b.x1 - ie, b.z0 + ins], [b.x1 - ie, b.z1 - ins], [b.x0 + ie, b.z1 - ins]];
+    // Pareti: pannelli grigi con giunti e due nastri vetrati (tissot.bands: [y, altezza] su 256); di sera qualche finestra accesa.
+    const [c, g] = canvas(512, 256), [cn, n] = canvas(512, 256), r2 = seeded('tissot-fac');
+    g.fillStyle = '#9ba2a9'; g.fillRect(0, 0, 512, 256); n.fillStyle = '#000'; n.fillRect(0, 0, 512, 256);
+    g.fillStyle = 'rgba(0,0,0,.08)'; for (let x = 0; x < 512; x += 32) g.fillRect(x, 0, 2, 256);
+    for (const [y0, h] of T.bands || [[70, 30], [168, 18]]) {
+      const gr = g.createLinearGradient(0, y0, 0, y0 + h); gr.addColorStop(0, '#5a6d7e'); gr.addColorStop(1, '#2f3c49'); g.fillStyle = gr; g.fillRect(0, y0, 512, h);
+      g.fillStyle = 'rgba(20,24,28,.6)'; for (let x = 0; x < 512; x += 16) g.fillRect(x, y0, 2, h);
+      for (let x = 0; x < 512; x += 16) if (r2() < 0.4) { n.fillStyle = r2() < 0.75 ? '#ffd39a' : '#dbe8ff'; n.fillRect(x + 2, y0 + 3, 13, h - 6); }
+    }
+    const wallMat = nightMat(new THREE.MeshLambertMaterial({ map: texture(c, true), emissiveMap: texture(cn, true), emissive: color('#ffffff'), emissiveIntensity: 0, side: THREE.DoubleSide }), 1);
+    const glassMat = (tint, k = 0.9, day = 0.05) => nightMat(new THREE.MeshLambertMaterial({ map: glazingTexture(), emissiveMap: glazingNightTexture(tint), emissive: color('#ffffff'), emissiveIntensity: day, side: THREE.DoubleSide }), k, 'emissiveIntensity', day);
+    const gg = stripGeometry(Wl, 0, gH, { closed: true, uScale: 4 }), gu = gg.attributes.uv; for (let i = 0; i < gu.count; i++) gu.setY(i, gu.getY(i) * gH / 5.3);
+    group.add(new THREE.Mesh(gg, glassMat('#ffcf8a')));
+    const wall = new THREE.Mesh(stripGeometry(Wl, gH, yF, { closed: true, uScale: T.uScale ?? 26 }), wallMat); group.add(wall);
+    // Nastro di finestre illuminate in alto sulle due testate (di giorno appena accese, di sera calde).
+    for (const x of [b.x0 + ie - 0.06, b.x1 - ie + 0.06]) {
+      const eg = stripGeometry([[x, b.z0 + ins + 1], [x, b.z1 - ins - 1]], yF - 3.6, yF - 0.6, { uScale: 3 }), eu = eg.attributes.uv; for (let i = 0; i < eu.count; i++) eu.setY(i, eu.getY(i) * 3 / 5.3);
+      group.add(new THREE.Mesh(eg, glassMat('#ffd9a0', 1.1, 0.35)));
+      for (let z = b.z0 + ins + 3; z < b.z1 - ins - 2; z += 4) windows.push({ x: x + Math.sign(x) * 0.3, y: yF - 2.1, z, c: '#ffd9a0', s: 1.8 });
+    }
+    // Fascia alta sporgente (champagne, giunti verticali) e intradosso scuro con le luci.
+    const [fc, fg] = canvas(256, 64); fg.fillStyle = '#b9a47f'; fg.fillRect(0, 0, 256, 64); fg.fillStyle = 'rgba(70,55,35,.18)'; for (let x = 0; x < 256; x += 64) fg.fillRect(x, 0, 2, 64); fg.fillStyle = 'rgba(255,255,255,.12)'; fg.fillRect(0, 0, 256, 6);
+    group.add(new THREE.Mesh(stripGeometry(R, yF, H + 0.5, { closed: true, uScale: 16 }), new THREE.MeshLambertMaterial({ map: texture(fc, true), side: THREE.DoubleSide })));
+    const S = new Mesher(), soff = color('#2a2d32');
+    R.forEach((a, i) => { const q = R[(i + 1) % 4], c2 = Wl[(i + 1) % 4], d = Wl[i]; S.quad([a[0], yF, a[1]], [q[0], yF, q[1]], [c2[0], yF, c2[1]], [d[0], yF, d[1]], soff); });
+    group.add(S.mesh());
+    const down = []; R.forEach((a, i) => { const q = R[(i + 1) % 4], L = Math.hypot(q[0] - a[0], q[1] - a[1]), w0 = Wl[i], w1 = Wl[(i + 1) % 4];
+      for (let u = 3; u < L - 2; u += 6) { const t = u / L; down.push({ x: (a[0] + (q[0] - a[0]) * t + w0[0] + (w1[0] - w0[0]) * t) / 2, y: yF - 0.15, z: (a[1] + (q[1] - a[1]) * t + w0[1] + (w1[1] - w0[1]) * t) / 2, c: '#fff1d8', s: 1.3 }); } });
+    windows.push(...down);
+    // Basamento nord a tetto verde con i cunei bianchi delle scale.
+    { const B = new Mesher(), ph = T.podiumH ?? 4.6, zf = b.z0 - (T.podiumOut ?? 2), zw = b.z0 + ins, step = T.wedgeStep ?? 21, wl = 8.5, conc = color('#d9d9d4'), concS = color('#c4c4bf'), green = color('#6f8f4a'), dark = color('#36414c');
+      const xs0 = b.x0 + 8, xs1 = b.x1 - 8, wedges = []; for (let x = xs0; x + wl < xs1; x += step) wedges.push(x);
+      wedges.forEach((x, i) => {
+        const z0 = zf - 3, z1 = zw, x1 = x + wl, h = ph + 0.8;
+        B.quad([x, 0, z0], [x1, h, z0], [x1, h, z1], [x, 0, z1], conc);
+        B.tri([x, 0, z0], [x1, 0, z0], [x1, h, z0], concS); B.tri([x, 0, z1], [x1, h, z1], [x1, 0, z1], concS);
+        B.quad([x1, 0, z0], [x1, 0, z1], [x1, h, z1], [x1, h, z0], concS);
+        const nx = wedges[i + 1] ?? xs1, a0 = x1 + 0.4, a1 = nx - 0.4; if (a1 - a0 < 2) return;
+        B.box((a0 + a1) / 2, ph / 2, (zf + zw) / 2, a1 - a0, ph, zw - zf, dark); B.quad([a0, ph + 0.03, zf + 0.6], [a1, ph + 0.03, zf + 0.6], [a1, ph + 0.03, zw], [a0, ph + 0.03, zw], green);
+        B.beam([a0, ph + 1, zf + 0.3], [a1, ph + 1, zf + 0.3], 0.06, color('#a9aeb3'));
+        for (let u = a0 + 1.5; u < a1 - 1; u += 3) if (rand() < 0.7) windows.push({ x: u, y: 2.1, z: zf - 0.3, c: '#ffd9a0', s: 1.5 });
+      });
+      group.add(B.mesh()); }
+    // Stadio: campo, prato attorno, catino di tribune a trapezi fino al muro di fondo con i palchi vetrati, anello del
+    // tetto con l'intradosso scuro, pali dei fari inclinati verso il campo. Di sera il campo e le tribune si accendono.
+    { const xs = (b.x0 + b.xj) / 2, zc = b.zc, ox = T.openX ?? 57, oz = T.openZ ?? 39, st = T.standTop ?? 10;
+      const pitchMat = nightMat(new THREE.MeshLambertMaterial({ map: pitchTexture(), emissive: color('#ffffff'), emissiveIntensity: 0 }), 0.8); pitchMat.emissiveMap = pitchMat.map;
+      const pm = new THREE.Mesh(new THREE.PlaneGeometry(112, 74), pitchMat); pm.rotation.x = -Math.PI / 2; pm.position.set(xs, 0.08, zc); group.add(pm);
+      const I = [xs - 56 - 2, xs + 56 + 2, zc - 37 - 2, zc + 37 + 2], O = [b.x0 + ie + 0.25, b.xj - 0.25, b.z0 + ins + 0.25, b.z1 - ins - 0.25];
+      const grassM = new THREE.Mesh(new THREE.PlaneGeometry(I[1] - I[0], I[3] - I[2]), new THREE.MeshLambertMaterial({ color: '#4d6e3b' })); grassM.rotation.x = -Math.PI / 2; grassM.position.set(xs, 0.05, zc); group.add(grassM);
+      const SB = new Mesher(), seatA = color('#5a687c'), seatB = color('#4b596c'), rows = 16;
+      const ic = [[I[0], I[2]], [I[1], I[2]], [I[1], I[3]], [I[0], I[3]]], oc = [[O[0], O[2]], [O[1], O[2]], [O[1], O[3]], [O[0], O[3]]];
+      for (let s = 0; s < 4; s++) { const a = ic[s], q = ic[(s + 1) % 4], A2 = oc[s], Q2 = oc[(s + 1) % 4];
+        for (let k = 0; k < rows; k++) { const t0 = k / rows, t1 = (k + 1) / rows, L = (p, P, t) => [p[0] + (P[0] - p[0]) * t, 1.2 + (st - 1.2) * t, p[1] + (P[1] - p[1]) * t];
+          const p0 = L(a, A2, t0), p1 = L(q, Q2, t0), p2 = L(q, Q2, t1), p3 = L(a, A2, t1); SB.quad(p0, p1, [p2[0], p2[1], p2[2]], p3, k % 2 ? seatA : seatB); } }
+      const sm = SB.mesh({ emissive: color('#8899aa'), emissiveIntensity: 0 }); nightMat(sm.material, 0.55); group.add(sm);
+      // Muro di fondo sopra le tribune, con i palchi vetrati accesi; intradosso dell'anello del tetto.
+      const Oc = [[O[0], O[2]], [O[1], O[2]], [O[1], O[3]], [O[0], O[3]]];
+      group.add(new THREE.Mesh(stripGeometry(Oc, st, H - 1.6, { closed: true }), new THREE.MeshLambertMaterial({ color: '#2b2f35', side: THREE.DoubleSide })));
+      const bg = stripGeometry(Oc.map(([x, z]) => [x + Math.sign(xs - x) * 0.06, z + Math.sign(zc - z) * 0.06]), st + 1, st + 3.6, { closed: true, uScale: 3 }), bu = bg.attributes.uv; for (let i = 0; i < bu.count; i++) bu.setY(i, bu.getY(i) * 2.6 / 5.3);
+      group.add(new THREE.Mesh(bg, glassMat('#ffd9a0', 0.9, 0.12)));
+      const U = new Mesher(), uc = color('#3a3e44'), y1 = H - 1.6, op = [xs - ox, xs + ox, zc - oz, zc + oz];
+      const ringTop = color(T.ringColor || '#8d877e');
+      for (const [a0, a1, c0, c1] of [[b.x0, b.xj, b.z0, op[2]], [b.x0, b.xj, op[3], b.z1], [b.x0, op[0], op[2], op[3]], [op[1], b.xj, op[2], op[3]]]) { U.quad([a0, y1, c0], [a1, y1, c0], [a1, y1, c1], [a0, y1, c1], uc); U.quad([a0, H, c0], [a1, H, c0], [a1, H, c1], [a0, H, c1], ringTop); }
+      group.add(U.mesh());
+      group.add(new THREE.Mesh(stripGeometry([[op[0], op[2]], [op[1], op[2]], [op[1], op[3]], [op[0], op[3]]], y1, H + 0.3, { closed: true }), new THREE.MeshLambertMaterial({ color: '#56514a', side: THREE.DoubleSide })));
+      // Pali dei fari: sottili, piantati sull'anello e inclinati verso il campo, con la testa luminosa.
+      const MS = new Mesher(), pole = color('#c9cdd2'), head = color('#eef2f6'), nM = T.masts ?? 6;
+      for (const sz of [-1, 1]) for (let k = 0; k < nM; k++) {
+        const x = op[0] + 10 + k * (op[1] - op[0] - 20) / (nM - 1), zb = zc + sz * (oz + 5), zt = zc + sz * (oz - 3), yt = H + (T.mastH ?? 17);
+        MS.beam([x, H, zb], [x, yt, zt], 0.35, pole); MS.box(x, yt + 0.3, zt, 3.2, 0.9, 0.7, head, 0, sz * 0.5);
+        windows.push({ x, y: yt + 0.1, z: zt - sz * 0.5, c: '#f6f8ff', s: 10 }); pools.push([x, zc + sz * 18]);
+      }
+      group.add(MS.mesh()); }
+    tissotHall.spec = { b, fz, ins, ie, yF };
+    occupy(b.x0 - 6, b.x1 + 6, b.z0 - 10, b.z1 + 4);
+    return wall;
+  }
+
   // Quote della sala a pieghe. Con relative: true i profili sono altezze sopra il muro interno (wallY), così la sala
   // segue le tribune; la volta parte 1,5 m sopra il muro e sale almeno quanto l'arco interno più un metro.
   // topAt(x, z) dà la quota del tetto in ogni punto: sul perimetro è il profilo E.folded.top, dentro una superficie
@@ -950,6 +1042,17 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
     const RM = new Mesher(), r3 = seeded(A.team + 'units');
     for (let i = 0; i < 8; i++) RM.box(X0 + 12 + r3() * (X1 - X0 - 24), H + 1.2, Z0 + 10 + r3() * (Z1 - Z0 - 20), 4 + r3() * 6, 2.4, 3 + r3() * 4, color(i % 2 ? '#c9ccd0' : '#a3a8ad'));
     roof.add(RM.mesh());
+  } else if (TS) {
+    // Bienne: tetto della sala coperto di file di pannelli solari (corridoio di servizio al centro), una fila di lucernari
+    // vicino allo stadio e qualche impianto.
+    const { b } = tissotHall.spec, RM = new Mesher(), base = color('#a9adb1'), p1 = color('#22324a'), p2 = color('#2a3c57'), unit = color('#d4d7da'), skyC = color('#b9cad8');
+    RM.quad([b.xj, H, b.z0], [b.x1, H, b.z0], [b.x1, H, b.z1], [b.xj, H, b.z1], base);
+    const px0 = b.xj + 14, px1 = b.x1 - 2.5, seg = 17;
+    for (let z = b.z0 + 2.5; z + 1.9 < b.z1 - 2.5; z += 2.5) { if (Math.abs(z + 0.95 - b.zc) < 2) continue; for (let x = px0; x + 4 < px1; x += seg + 1.4) { const xe = Math.min(px1, x + seg); RM.box((x + xe) / 2, H + 0.2, z + 0.95, xe - x, 0.2, 1.9, ((x + z) | 0) % 3 ? p1 : p2); } }
+    for (let z = b.z0 + 6; z < b.z1 - 6; z += 9) RM.box(b.xj + 7, H + 0.5, z, 6, 1, 6, skyC);
+    for (let i = 0; i < 14; i++) RM.box(b.xj + 16 + rand() * (b.x1 - b.xj - 22), H + 0.9, b.z0 + 5 + rand() * (b.z1 - b.z0 - 10), 2 + rand() * 3, 1.6, 1.5 + rand() * 2, unit);
+    roof.add(RM.mesh());
+    top = H + 1.8;
   } else if (ZG) {
     // Zugo: la pelle bianca è una sola superficie (vedi zugHall): due griglie, lungo la torre e a sud, che si toccano senza
     // stacchi; bordo spesso bianco, intradosso a pannelli (di giorno grigio chiaro, di sera viola con macchie bianche).
@@ -1182,6 +1285,11 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
     // Zugo: scritta bianca sul bronzo, sul fronte sud verso ovest e sulla testata ovest del corpo sotto lo sbalzo.
     const S = zugHall.spec; sign.scale.setScalar(0.8); sign.position.set(S.x0 + 26, S.Hh * 0.62, S.z1 + 0.2);
     const s2 = sign.clone(); s2.scale.setScalar(0.6); s2.rotation.y = -Math.PI / 2; const zm = (S.tz1 + S.z1) / 2; s2.position.set(S.xe - 0.25, S.gH + (S.roofY(S.xe, zm) - S.th2 - S.gH) * 0.55, zm); group.add(s2);
+  }
+  if (TS) {
+    // Bienne: scritta sulla fascia del fianco nord, vicino allo stadio, e sulla fascia della testata dello stadio.
+    const { b, fz } = tissotHall.spec; sign.scale.setScalar(0.72); sign.rotation.y = Math.PI; sign.position.set(b.xj + 24, H - fz / 2 + 0.3, b.z0 - 0.15);
+    const s2 = sign.clone(); s2.rotation.y = -Math.PI / 2; s2.position.set(b.x0 - 0.15, H - fz / 2 + 0.3, b.zc); group.add(s2);
   }
   if (LS) {
     // Losanna: scritta sul corpo alto, sul fronte sud (tra l'angolo ovest e l'angolo interno della L), sul retro e sul

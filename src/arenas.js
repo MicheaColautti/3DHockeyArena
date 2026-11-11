@@ -20,6 +20,8 @@ const standing = (rows, rise = 0.38, depth = 0.55, more = {}) => ({ rows, rise, 
 const upper = (rows, rise, depth, fascia = 'led', gap = { depth: 1.8, rise: 2.6 }) => ({ rows, rise, depth, gap, fascia });
 // Secondo anello di Berna: muro alto con striscia LED davanti (fascia 'wall'), corridoio largo.
 const ring2 = t => ({ gap: { depth: 3.2, rise: 5.5 }, fascia: 'wall', ...t });
+// Corridoio in fondo al profilo (nessuna fila): pavimento piano dietro l'ultima fila, dove stanno logge o balconata (vipGlass.behind).
+const deck = (depth = 2) => ({ rows: 0, rise: 0, depth: 0, gap: { depth, rise: 0 }, fascia: 'none' });
 const suites = (rows = 3) => ({ rows, rise: 0.5, depth: 0.9, gap: { depth: 2, rise: 3.2 }, fascia: 'suites' });
 
 export const ARENAS = {
@@ -38,7 +40,7 @@ export const ARENAS = {
     },
     corners: { west: 'end', east: 'side' },
     home: { side: 'west' },
-    guest: { side: 'east', from: 0, to: 0.3, tier: 0, corner: 'north' },
+    guest: { side: 'east', from: 0, to: 0.14, tier: 0, corner: 'north', cornerTo: 0.65, rowFrom: 3, glass: true },
     led: { boards: true, rim: true },
     roof: { type: 'vault', rise: 0.16, clear: 6, color: '#c3c7cc', steel: '#8d939b' },
     cube: { w: 6, h: 3.6 },
@@ -65,10 +67,11 @@ export const ARENAS = {
       east: { base: 2.2, tiers: [standing(18, 0.38, 0.55), upper(13, 0.6, 0.8, 'led', { depth: 1.4, rise: 2.4 })] },
     },
     corners: 'wedge',
-    noAisles: true, guestWall: true,
+    // Tribune continue, tranne una scala tra la curva di casa in piedi e gli ospiti (stairs); ospiti dietro il vetro.
+    noAisles: true, stairs: { east: [0.52] },
     home: { side: 'west' },
     standing: [{ side: 'east', from: 0, to: 0.5, tier: 0 }],
-    guest: { side: 'east', from: 0.54, to: 1, tier: 0 },
+    guest: { side: 'east', from: 0.54, to: 1, tier: 0, glass: true },
     led: { boards: true, rim: false },
     roof: { type: 'truss', clear: 6.5, color: '#2a2d32', steel: '#d5d8dc', cross: true },
     cube: { w: 6, h: 3.4 },
@@ -168,26 +171,40 @@ export const ARENAS = {
   },
   EHCB: {
     team: 'EHCB', name: 'Tissot Arena', city: 'Bienne', capacity: 6562, opened: 2015,
-    note: 'Pista e stadio di calcio nello stesso complesso allungato, legati da una piazza. Catino grigio ad angoli arrotondati; ospiti in piedi nell\'angolo destro della curva opposta.',
+    note: 'Un unico stabile lungo: la pista sotto un tetto coperto di pannelli solari e, attaccato, lo stadio di calcio aperto con l\'anello del tetto e i fari. Dentro, catino grigio ad angoli arrotondati; ospiti in piedi nell\'angolo destro della curva opposta.',
     facts: ['Hockey e calcio nello stesso complesso', 'Tribune grigie fino alle balaustre', 'Ospiti in piedi in un angolo, dietro il vetro', 'Tetto coperto di pannelli solari'],
     gaps: { side: 2.4, bench: 4.4, end: 3 },
     stands: {
-      north: { base: 1.3, tiers: [seated(13, 0.44, 0.82), upper(9, 0.5, 0.8, 'led', { depth: 1.4, rise: 2.2 })] },
-      south: { base: 1.3, tiers: [seated(13, 0.44, 0.82), upper(9, 0.5, 0.8, 'led', { depth: 1.4, rise: 2.2 })] },
-      west: { base: 2.3, tiers: [standing(13, 0.4, 0.55), upper(9, 0.5, 0.8, 'led', { depth: 1.4, rise: 2.2 })] },
-      east: { base: 2.1, tiers: [seated(11, 0.44, 0.82), upper(9, 0.5, 0.8, 'led', { depth: 1.4, rise: 2.2 })] },
+      // Come la Gottardo ma su due livelli. Primo anello uguale ovunque (fascia LED e corridoio combaciano negli angoli): curva
+      // di casa in piedi a ovest che avvolge i suoi angoli, ospiti in piedi nell'angolo sud-est. Secondo anello di sole 5 file
+      // a sedere, giro completo; dietro, sul corridoio, le logge VIP vetrate sui lati lunghi e sulle curve una balconata con
+      // il fondo vetrato sul cielo notturno (extras.vipGlass con behind).
+      north: { base: 1.3, tiers: [seated(13, 0.5, 0.82), upper(5, 0.5, 0.8, 'led', { depth: 1.4, rise: 2.2 }), deck(2)] },
+      south: { base: 1.3, tiers: [seated(13, 0.5, 0.82), upper(5, 0.5, 0.8, 'led', { depth: 1.4, rise: 2.2 }), deck(2)] },
+      west: { base: 1.3, tiers: [standing(19, 0.333, 0.561), upper(5, 0.5, 0.8, 'led', { depth: 1.4, rise: 2.2 }), deck(2)] },
+      east: { base: 1.3, tiers: [seated(13, 0.5, 0.82), upper(5, 0.5, 0.8, 'led', { depth: 1.4, rise: 2.2 }), deck(2)] },
     },
-    corners: true,
+    corners: { west: 'end', east: 'side' },
     home: { side: 'west', tier: 0 },
-    guest: { side: 'east', from: 0.64, to: 1, tier: 0, corner: 'south', standing: true },
-    led: { boards: true, rim: true },
+    guest: { side: 'east', from: 0.78, to: 1, tier: 0, corner: 'south', cornerTo: 0.5, standing: true, glass: true },
+    led: { boards: true, rim: false },
+    extras: { vipGlass: { sides: ['north', 'south'], behind: true, h: 3.2, low: 0.05, people: 0.4 } },
+    occupancy: 0.99,
+    sectors: { north: 3, south: 3 },
     roof: { type: 'truss', clear: 6.5, color: '#2c2f34', steel: '#b9bec4' },
     cube: { w: 6, h: 3.6 },
     style: { concrete: '#9a9da1', riser: '#808388', wall: '#2c2f34', floor: '#222428', seats: ['#8e9196', '#83868b'], seatPattern: 'blocks' },
     light: { tint: '#f2f6ff', ambient: 1, key: 1.05 },
-    exterior: { shape: 'rect', wall: '#9aa0a6', facade: 'bands', uScale: 20, roof: 'flat', roofMat: 'solar', ground: 'grass', trees: 60, conifers: false,
-      features: [{ type: 'walkers', side: 'east', dist: 2, w: 8, len: 80, n: 25 }, { type: 'walkers', side: 'north', dist: 2, w: 10, len: 100, n: 40 }, { type: 'stadium', side: 'west', dist: 0, turn: true, color: '#8a9096' }, { type: 'boulders', side: 'south', dist: 5, len: 300, offset: -70 }, { type: 'pitch', side: 'north', dist: 24 }, { type: 'pitch', side: 'south', dist: 40, offset: 90 },
-        { type: 'parking', side: 'east', dist: 12, w: 50, len: 90, cars: 70 }, { type: 'road', side: 'south', dist: 90 }, { type: 'slope', side: 'north', dist: 260, angle: 0.35, depth: 300, trees: 600, conifers: false }, { type: 'city', side: 'south', dist: 120, n: 30 }] },
+    // Esterno dalle foto: stabile lungo e largo uguale, sala della pista a est (tetto di pannelli solari) e stadio di calcio
+    // a ovest (anello del tetto attorno al campo aperto, pali dei fari inclinati). Fascia champagne sporgente, pareti grigie
+    // a nastri vetrati, finestre accese in alto sulle testate, cunei bianchi delle scale lungo il fianco nord sulla strada.
+    // Attorno prati e campi, la strada, la città sullo sfondo e le colline.
+    exterior: { shape: 'rect', wall: '#9aa0a6', height: 21.3, ground: 'grass', meadows: { r: 640, cell: 48 }, trees: 50, conifers: false,
+      tissot: { width: 104, stadiumLen: 140, gap: 4, endPad: 4, inset: 4, fascia: 3.6, masts: 6, mastH: 17 },
+      features: [{ type: 'walkers', side: 'north', dist: 8, w: 5, len: 220, n: 50, offset: -60 }, { type: 'road', side: 'north', dist: 16, traffic: true }, { type: 'parking', side: 'east', dist: 14, w: 46, len: 80, cars: 60 },
+        { type: 'pitch', side: 'south', dist: 26, offset: -130 }, { type: 'pitch', side: 'south', dist: 26, offset: 0 }, { type: 'road', side: 'west', dist: 30 },
+        { type: 'city', side: 'south', dist: 150, depth: 260, grid: 34, height: 26, spread: 420 }, { type: 'city', side: 'north', dist: 110, depth: 200, grid: 36, height: 18, spread: 360 },
+        { type: 'slope', side: 'north', dist: 360, angle: 0.3, depth: 300, trees: 500, conifers: false }] },
   },
   HCD: {
     team: 'HCD', name: 'VAT Arena', formerName: 'Eisstadion Davos', city: 'Davos', capacity: 6795, opened: 1979,
@@ -203,7 +220,7 @@ export const ARENAS = {
     },
     corners: 'wedge', wedge: { match: true, tip: 4 },
     home: { side: 'west' },
-    guest: { side: 'south', from: 0.7, to: 1, tier: 0 },
+    guest: { side: 'south', from: 0.7, to: 1, tier: 0, glass: true },
     led: { boards: true, rim: false },
     roof: { type: 'wood-cross', clear: 3.5, color: '#a9673a', bulge: 1, vault: { lift: 0, rise: 14, point: 0.9, soft: 1.2, ax: 0.45, az: 0.7, hip: 0.6, rib: 0.5, ribH: 1.5, ribStep: 3.4 } },
     cube: { w: 5, h: 3 },
@@ -232,7 +249,7 @@ export const ARENAS = {
     },
     corners: 'wedge', wedge: { match: true, tip: 5 },
     home: { side: 'west', tier: 0 },
-    guest: { side: 'east', from: 0.72, to: 0.96, tier: 0, rowFrom: 3, standing: true },
+    guest: { side: 'east', from: 0.72, to: 0.96, tier: 0, rowFrom: 3, standing: true, glass: true },
     occupancy: 0.96,
     led: { boards: true, rim: true },
     roof: { type: 'truss', clear: 7, color: '#141518', steel: '#3a3d42', cross: true },
@@ -348,7 +365,7 @@ export const ARENAS = {
     // La curva di casa gira anche negli angoli ovest (profilo della testata), così occupa tutta la parte curva.
     corners: { west: 'end', east: 'side' },
     home: { side: 'west', tier: 0 },
-    guest: { side: 'east', from: 0.86, to: 1, tier: 0, corner: 'south', cornerTo: 0.5, rowFrom: 3 },
+    guest: { side: 'east', from: 0.86, to: 1, tier: 0, corner: 'south', cornerTo: 0.5, rowFrom: 3, glass: true },
     led: { boards: true, rim: true, rimSkip: ['west', 'corner-west-north', 'corner-west-south'] },
     roof: { type: 'flat', clear: 7, color: '#1c1f25', steel: '#2e3138', glow: '#ff2b2b' },
     cube: { w: 8, h: 4.8 },
@@ -396,7 +413,7 @@ export const ARENAS = {
   ZSC: {
     team: 'ZSC', name: 'Swiss Life Arena', city: 'Zurigo', capacity: 12000, opened: 2022,
     note: 'Pianta a spigoli netti e facciata a pieghe come un sipario, con il bordo ondulato e gli oblò; di sera tratti rossi, bianchi e blu. Dentro, tribune ripide tutte a sedere, cubo 12 × 8 m e, dietro una porta, il muro di cemento con le nicchie colorate.',
-    facts: ['Aperta nel 2022', 'Facciata a pieghe con oblò', 'Muro con le nicchie blu, bianche e rosse', 'Ospiti in alto, accanto al muro delle nicchie'],
+    facts: ['Aperta nel 2022', 'Facciata a pieghe con oblò', 'Muro con le nicchie blu, bianche e rosse', 'Logge VIP sul lato delle panchine; ospiti in piedi nell\'angolo, dietro il vetro'],
     gaps: { side: 2.4, bench: 4.4, end: 3.2 },
     stands: {
       north: { base: 1.3, tiers: [seated(16, 0.48, 0.8), upper(14, 0.56, 0.78, 'led', { depth: 2, rise: 3 })] },
@@ -409,18 +426,22 @@ export const ARENAS = {
     },
     // Angoli est: il primo anello curva (profilo della testata); l'anello superiore dei lati gira l'angolo leggermente
     // arcuato e prosegue lungo la testata a scalare: la prima fila fa il giro completo, le altre si fermano sempre prima.
-    corners: { west: 'side', east: 'end' },
+    // Angoli ovest della testata di casa: la curva li avvolge (zona tifosi più larga).
+    corners: { west: 'end', east: 'end' },
     upperArc: { end: 'east', wall: 17.9, stepDeg: 6, second: 0.45 },
     home: { side: 'west', seatedCurve: true },
     curveFlags: 0.012,
-    // Ospiti in alto a destra guardando le nicchie: anello superiore del lato sud, verso la testata est.
-    guest: { side: 'south', from: 0.82, to: 1, tier: 1 },
+    // Ospiti (settore C della mappa): in piedi nella parte alta del primo anello, nell'angolo tra la testata delle nicchie e il
+    // lato delle panchine, chiusi dal vetro.
+    guest: { side: 'east', from: 0.86, to: 1, tier: 0, corner: 'south', cornerTo: 0.6, rowFrom: 8, standing: true, glass: true },
     led: { boards: true, rim: true },
     roof: { type: 'truss', clear: 7, color: '#24272c', steel: '#4a4f57' },
     cube: { w: 12, h: 8 },
     style: { concrete: '#6f737a', riser: '#5a5e65', wall: '#77787a', floor: '#2a2c30', seats: ['#2a2d33', '#33363d'], seatPattern: 'blocks' },
     light: { tint: '#ffffff', ambient: 1.1, key: 1.1 },
-    extras: { nicheWall: { side: 'east', back: 3.5, color: '#77787a', n: 8, w: 4.5, h: 8, depth: 0.8, colors: ['#1d4fd8', '#f4f4f2', '#e8202a'] } },
+    extras: { nicheWall: { side: 'east', back: 3.5, color: '#77787a', n: 8, w: 4.5, h: 8, depth: 0.8, colors: ['#1d4fd8', '#f4f4f2', '#e8202a'] },
+      // Lato panchine: sopra il secondo anello una balconata con gente al parapetto e, dietro, le logge VIP vetrate.
+      vipGlass: { sides: ['south'], vipBalcony: true, balconies: false, h: 3.4, balcony: 1.6, people: 0.4 } },
     // Esterno dalle foto, dal basso verso l'alto: piano terra vetrato arretrato dietro una fila di colonne, sopra il
     // "sipario" di pieghe chiare con il bordo ad archi. Livelli: sala dell'arena (la più alta, rossa di sera) con sopra il
     // livello arretrato a fasce blu, bianca e rossa con l'insegna; a ovest la sala d'allenamento più bassa (testata blu);
@@ -457,7 +478,7 @@ export const ARENAS = {
     },
     corners: { west: 'side', east: 'end' },
     home: { side: 'east' },
-    guest: { side: 'west', from: 0, to: 0.5, tier: 0, standing: true, corner: 'north', cornerTo: 0.6 },
+    guest: { side: 'west', from: 0, to: 0.5, tier: 0, standing: true, corner: 'north', cornerTo: 0.6, glass: true },
     // Logge VIP: vetrate sopra il secondo anello sui due rettilinei; sulle curve e negli angoli la fascia prosegue come balconata.
     extras: { vipGlass: { sides: ['south', 'north'], h: 3.2, balcony: 1.4, people: 0.35 } },
     led: { boards: true, rim: false },

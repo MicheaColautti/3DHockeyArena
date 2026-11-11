@@ -7,14 +7,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { TEAMS } from './teams.js?v=140';
-import { ARENAS } from './arenas.js?v=140';
-import { POSITIONS, placeholderLineup } from './lineups.js?v=140';
-import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=140';
-import { iceTexture, boardsTexture, ledTexture, suitesTexture, vipGlassTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=140';
-import { lambert, disposeObject, makePlayer } from './players.js?v=140';
-import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=140';
-import { buildExterior, octaRoof } from './exterior.js?v=140';
+import { TEAMS } from './teams.js?v=157';
+import { ARENAS } from './arenas.js?v=157';
+import { POSITIONS, placeholderLineup } from './lineups.js?v=157';
+import { RINK, seeded, pick, weighted, ease, color, lum, logoOf, canvas, texture, drawLogo, fitText, Mesher, stripGeometry, roundedRect, readable, _p, _s } from './common.js?v=157';
+import { iceTexture, boardsTexture, ledTexture, suitesTexture, vipGlassTexture, bannerTexture, hangingBannerTexture, flagAtlas, flagMaterial, bounceMaterial } from './textures.js?v=157';
+import { lambert, disposeObject, makePlayer } from './players.js?v=157';
+import { buildLayout, sectionLine, sectionTs, sectionPoint, samplePolyline, zoneAt, standsAt, zoneCuts, heightAt, sectionByKey } from './layout.js?v=157';
+import { buildExterior, octaRoof } from './exterior.js?v=157';
 
 export { RINK };
 const NEUTRALS = ['#2b2f36', '#3c4048', '#56606b', '#e6e6e6', '#1d2a44', '#5b4636', '#8a8f99', '#1a1a1a', '#6f7f8f', '#a33a3a', '#3f5f3f'];
@@ -308,7 +308,9 @@ export class ArenaView {
       // Curva in piedi di casa: niente scale tra i settori, solo due passaggi vicino al centro (A.home.aisles).
       const curveSec = this.isCurve(S), ent = this.entrances(S), vom = ent || (curveSec && S.kind === 'straight' ? this.vomitories(S) : null), cuts = [...zoneCuts(A, S), ...(vom ? vom.cuts : []), ...(S.kind === 'wedge' && S.stair ? [0.47, 0.53] : [])], upperFrom = st.upperSeats ? Math.floor(P.rows.length * st.upperSeats.from) : Infinity, upperC = st.upperSeats && color(st.upperSeats.color);
       P.rows.forEach((R, ri) => {
-        const ts = sectionTs(S, 0, 1, 7, cuts), at = d => ts.map(t => { const q = sectionPoint(S, t, d); return [q.x, q.z]; });
+        // Lati con A.sectors: le scale stanno esattamente a 1/n, 2/n... (centrate), non sui tratti da 7 m; via i tagli troppo vicini.
+        const sc = this.hasStairs(S) ? this.sectorBounds(S).flatMap(b => [b - 1.1 / S.len, b]) : null;
+        const ts = sc ? [...sectionTs(S, 0, 1, 7, cuts).filter(t => t < 1e-6 || t > 1 - 1e-6 || !sc.some(c => Math.abs(t - c) * S.len < 1.2)), ...sc].sort((a, b) => a - b) : sectionTs(S, 0, 1, 7, cuts), at = d => ts.map(t => { const q = sectionPoint(S, t, d); return [q.x, q.z]; });
         const inner = at(R.d), outer = at(R.d + R.depth);
         for (let i = 0; i < inner.length - 1; i++) {
           const up = standsAt(A, S, (ts[i] + ts[i + 1]) / 2, R);
@@ -354,8 +356,8 @@ export class ArenaView {
               M.quad([a[0], R.h, a[1]], [b[0], R.h, b[1]], [c[0], R.h, c[1]], [d[0], R.h, d[1]], seat); continue;
             }
           }
-          const segLen = Math.hypot(b[0] - a[0], b[1] - a[1]), hasAisle = A.noAisles || S.kind === 'wedge' || (curveSec && R.standing) ? false : R.tier > 0 && A.upperAisles ? S.kind === 'straight' && this.upperAisleAt(S, ts[i + 1]) : S.kind === 'straight' ? segLen > 3 : i % 3 === 2 && segLen > 1.5;
-          const u = hasAisle ? 1 - Math.min(0.45, 1.1 / Math.max(segLen, 0.1)) : 1;
+          const segLen = Math.hypot(b[0] - a[0], b[1] - a[1]), hasAisle = sc ? this.sectorAisleAt(S, ts[i + 1]) : A.noAisles || S.kind === 'wedge' || (curveSec && R.standing) ? false : R.tier > 0 && A.upperAisles ? S.kind === 'straight' && this.upperAisleAt(S, ts[i + 1]) : S.kind === 'straight' ? segLen > 3 : i % 3 === 2 && segLen > 1.5;
+          const u = hasAisle ? (sc ? 0 : 1 - Math.min(0.45, 1.1 / Math.max(segLen, 0.1))) : 1;
           const a2 = lerp2(a, b, u), d2 = lerp2(d, c, u);
           M.quad([a[0], R.h, a[1]], [a2[0], R.h, a2[1]], [d2[0], R.h, d2[1]], [d[0], R.h, d[1]], seat);
           if (hasAisle) M.quad([a2[0], R.h, a2[1]], [b[0], R.h, b[1]], [c[0], R.h, c[1]], [d2[0], R.h, d2[1]], aisle);
@@ -455,6 +457,14 @@ export class ArenaView {
   // wood-truss (capriate in legno), vault (volta ribassata con archi), wood-arch / wood-gothic (archi in legno), wood-cross (volte incrociate).
   isCurve(S) { const H = this.A.home; return !!H && (S.kind === 'straight' ? S.key === H.side && H.from == null && H.to == null : S.wrap && S.end === H.side); }
   // Secondo anello con poche scale (A.upperAisles = una scala ogni n settori da ~7 m), alla fine del settore come le altre.
+  // A.sectors = { north: 3 }: il lato ha solo n settori uguali, cioè n - 1 scale (su entrambi gli anelli) centrate a 1/n,
+  // 2/n, ...; sectorBounds dà la fine di ogni passaggio (largo 1,1 m), sectorAisleNear se un punto ci sta sopra.
+  // A.stairs = { east: [0.52] }: scale in punti precisi del lato (centro del passaggio), anche con noAisles (Lugano: una
+  // scala tra la curva di casa e gli ospiti).
+  hasStairs(S) { return S.kind === 'straight' && !!(this.A.stairs?.[S.key] || this.A.sectors?.[S.key]); }
+  sectorBounds(S) { const at = this.A.stairs?.[S.key], m = this.A.sectors?.[S.key]; return (at || Array.from({ length: m - 1 }, (_, k) => (k + 1) / m)).map(c => c + 0.55 / S.len); }
+  sectorAisleAt(S, t) { return this.sectorBounds(S).some(b => Math.abs(t - b) < 1e-4); }
+  sectorAisleNear(S, t) { const ps = t * S.len; return this.sectorBounds(S).some(b => ps > b * S.len - 1.15 && ps <= b * S.len); }
   upperAisleAt(S, t) { const n = Math.max(1, Math.round(S.len / 7)), k = t * n, r = Math.round(k); return Math.abs(k - r) < 1e-4 && r > 0 && (r - 1) % this.A.upperAisles === Math.floor(this.A.upperAisles / 2); }
   // Ingressi del secondo anello (Berna, A.entrances { every, color, sides, rows }): aperture nere con le spalle gialle,
   // a passo regolare lungo i lati indicati, qualche fila sopra il fronte dell'anello; fuori dal settore ospiti.
@@ -701,42 +711,70 @@ export class ArenaView {
       bg.fillStyle = TEAMS[home].primary; bg.fillRect(0, 6, 256, 3);
       const backTex = texture(bc, true), backMat = new THREE.MeshBasicMaterial({ map: backTex, side: THREE.DoubleSide });
       const railMat = new THREE.MeshLambertMaterial({ color: '#bcd6ea', transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false });
+      // behind (Bienne): logge e balconata non sopra ma dietro l'ultima fila, sul corridoio in fondo al profilo (tier
+      // con 0 file): ogni lato alla sua quota; sulla balconata il fondo è una vetrata sul cielo notturno.
+      const behind = !!VG.behind;
+      const [kc, kg] = canvas(256, 128), sk = kg.createLinearGradient(0, 0, 0, 128); sk.addColorStop(0, '#02040b'); sk.addColorStop(0.75, '#081129'); sk.addColorStop(1, '#122046');
+      kg.fillStyle = sk; kg.fillRect(0, 0, 256, 128); const rs = seeded('sky-window');
+      for (let i = 0; i < 40; i++) { kg.fillStyle = `rgba(255,255,255,${0.4 + rs() * 0.5})`; kg.fillRect(rs() * 256, rs() * 80, 1.5, 1.5); }
+      for (let x = 0; x < 256; x += 3) if (rs() < 0.5) { kg.fillStyle = rs() < 0.8 ? 'rgba(255,205,140,.8)' : 'rgba(200,220,255,.7)'; kg.fillRect(x, 112 + rs() * 12, 1.5, 1.5); }
+      kg.fillStyle = '#c9ced4'; for (let x = 0; x < 256; x += 64) kg.fillRect(x, 0, 3, 128); kg.fillRect(0, 0, 256, 3); kg.fillRect(0, 62, 256, 2); kg.fillRect(0, 124, 256, 4);
+      const skyMat = new THREE.MeshBasicMaterial({ map: texture(kc, true), side: THREE.DoubleSide });
       const B = new Mesher(), LP = new Mesher(), slab = color('#d9dde2'), post = color('#c9ced4'), rail = color('#eef1f4'), lampC = color('#fff4dc');
       const shirts = ['#0d5fa4', '#ffffff', '#1d2733', '#7a8796', '#0a4c86', '#c9ccd1', '#2f3a48'], skin = ['#e8c4a4', '#d7a985', '#b98563', '#f0d2b8'];
       for (const S of secs) {
-        const P = S.profile;
-        if (S.kind === 'straight' && sides.includes(S.key)) {
+        const P = S.profile, Y0 = behind ? P.top : y0, Y1 = behind ? Math.min(P.top + (VG.h ?? 3.2), this.roofY - 0.5) : y1;
+        if (VG.balconies === false && !(S.kind === 'straight' && sides.includes(S.key))) continue; // solo le logge, niente balconata
+        const isGlass = S.kind === 'straight' && sides.includes(S.key);
+        if (isGlass && !VG.vipBalcony) {
           // Se tra l'ultima fila e la fascia comune c'è spazio, la vetrata ha due piani: il marcapiano bianco (con il filo del
           // colore di casa) sta alla quota del pavimento della balconata, così la linea gira attorno alla sala.
-          const g0 = P.top + (VG.low ?? 0.5), gl = readable(sectionLine(S, P.depth - 0.08)), lf = readable(sectionLine(S, P.depth - 0.1));
-          const two = y0 - 0.35 - g0 > 1.2, pane = VG.pane ?? 4.4;
+          // walk (con behind): la vetrata sta a walk metri dall'inizio del corridoio e dietro c'è il corpo delle logge, chiuso in
+          // alto da una copertura scura fino al muro di fondo (così la sala mantiene la sua profondità).
+          const gd = behind && VG.walk != null && P.floors.length ? P.floors.at(-1).d0 + VG.walk : P.depth - 0.08;
+          const g0 = P.top + (VG.low ?? 0.5), gl = readable(sectionLine(S, gd)), lf = readable(sectionLine(S, gd - 0.02));
+          if (gd < P.depth - 0.5) { const la = sectionLine(S, gd), lb = sectionLine(S, P.depth - 0.05), CV = new Mesher(), kc = color('#3a3d42');
+            for (let i = 0; i < la.length - 1; i++) CV.quad([la[i][0], Y1 + 0.25, la[i][1]], [la[i + 1][0], Y1 + 0.25, la[i + 1][1]], [lb[i + 1][0], Y1 + 0.25, lb[i + 1][1]], [lb[i][0], Y1 + 0.25, lb[i][1]], kc);
+            for (const i of [0, la.length - 1]) CV.quad([la[i][0], P.top, la[i][1]], [lb[i][0], P.top, lb[i][1]], [lb[i][0], Y1 + 0.25, lb[i][1]], [la[i][0], Y1 + 0.25, la[i][1]], kc);
+            this.root.add(CV.mesh()); }
+          const two = !behind && y0 - 0.35 - g0 > 1.2, pane = VG.pane ?? 4.4;
           if (two) {
             this.root.add(new THREE.Mesh(stripGeometry(gl, g0, y0 - 0.35, { uScale: pane }), glassMat), new THREE.Mesh(stripGeometry(gl, y0, y1, { uScale: pane }), glassMat));
             this.root.add(new THREE.Mesh(stripGeometry(lf, y0 - 0.35, y0, { uScale: 10 }), fr));
             this.root.add(new THREE.Mesh(stripGeometry(readable(sectionLine(S, P.depth - 0.12)), y0 - 0.22, y0 - 0.14, { uScale: 10 }), new THREE.MeshBasicMaterial({ color: TEAMS[home].primary, side: THREE.DoubleSide })));
-          } else this.root.add(new THREE.Mesh(stripGeometry(gl, g0, y1, { uScale: pane }), glassMat));
-          for (const [a, b] of [[g0 - 0.3, g0], [y1, y1 + 0.25]]) this.root.add(new THREE.Mesh(stripGeometry(lf, a, b, { uScale: 10 }), fr));
+          } else if ((VG.storeys ?? 1) > 1) {
+            // Più piani di logge (Zurigo: logge e piano media): vetrate uguali separate da marcapiani bianchi.
+            const ns = VG.storeys, hs = (Y1 - g0) / ns;
+            for (let k = 0; k < ns; k++) {
+              this.root.add(new THREE.Mesh(stripGeometry(gl, g0 + k * hs + (k ? 0.35 : 0), g0 + (k + 1) * hs, { uScale: pane }), glassMat));
+              if (k) this.root.add(new THREE.Mesh(stripGeometry(lf, g0 + k * hs, g0 + k * hs + 0.35, { uScale: 10 }), fr));
+            }
+          } else this.root.add(new THREE.Mesh(stripGeometry(gl, g0, Y1, { uScale: pane }), glassMat));
+          for (const [a, b] of [[g0 - 0.3, g0], [Y1, Y1 + 0.25]]) this.root.add(new THREE.Mesh(stripGeometry(lf, a, b, { uScale: 10 }), fr));
           continue;
         }
-        const bd = VG.balcony ?? 1.4, back = sectionLine(S, P.depth - 0.05), edge = sectionLine(S, P.depth - bd), edge2 = sectionLine(S, P.depth - bd - 0.03);
+        const bd = behind ? P.depth - (P.floors.at(-1)?.d0 ?? P.depth - 1.4) : VG.balcony ?? 1.4, back = sectionLine(S, P.depth - 0.05), edge = sectionLine(S, P.depth - bd), edge2 = sectionLine(S, P.depth - bd - 0.03);
         // Muro di fondo della balconata e soletta (piano, intradosso e bordo bianco con il filo del colore di casa).
-        this.root.add(new THREE.Mesh(stripGeometry(readable(sectionLine(S, P.depth - 0.07)), y0, y1, { uScale: 8 }), backMat));
-        for (let i = 0; i < back.length - 1; i++) {
+        // vipBalcony (Zurigo): sul lato delle logge la balconata ha come fondo la vetrata delle logge VIP.
+        this.root.add(new THREE.Mesh(stripGeometry(readable(sectionLine(S, P.depth - 0.07)), Y0, Y1, { uScale: behind ? 5 : isGlass ? VG.pane ?? 4.4 : 8 }), behind ? skyMat : isGlass ? glassMat : backMat));
+        if (isGlass) this.root.add(new THREE.Mesh(stripGeometry(readable(sectionLine(S, P.depth - 0.09)), Y1, Y1 + 0.25, { uScale: 10 }), fr));
+        if (behind) this.root.add(new THREE.Mesh(stripGeometry(readable(sectionLine(S, P.depth - 0.09)), Y1, Y1 + 0.3, { uScale: 10 }), fr));
+        if (!behind) for (let i = 0; i < back.length - 1; i++) {
           for (const y of [y0, y0 - 0.35]) B.quad([back[i][0], y, back[i][1]], [back[i + 1][0], y, back[i + 1][1]], [edge[i + 1][0], y, edge[i + 1][1]], [edge[i][0], y, edge[i][1]], slab);
           B.quad([edge[i][0], y0 - 0.35, edge[i][1]], [edge[i + 1][0], y0 - 0.35, edge[i + 1][1]], [edge[i + 1][0], y0, edge[i + 1][1]], [edge[i][0], y0, edge[i][1]], slab);
           B.quad([edge2[i][0], y0 - 0.22, edge2[i][1]], [edge2[i + 1][0], y0 - 0.22, edge2[i + 1][1]], [edge2[i + 1][0], y0 - 0.14, edge2[i + 1][1]], [edge2[i][0], y0 - 0.14, edge2[i][1]], color(TEAMS[home].primary));
         }
         // Parapetto di vetro, corrimano, montanti; lampade sul muro; spettatori appoggiati al parapetto.
         const rl = sectionLine(S, P.depth - bd + 0.05);
-        this.root.add(new THREE.Mesh(stripGeometry(rl, y0, y0 + 1.0, { uScale: 4 }), railMat));
-        for (let i = 0; i < rl.length - 1; i++) B.beam([rl[i][0], y0 + 1.05, rl[i][1]], [rl[i + 1][0], y0 + 1.05, rl[i + 1][1]], 0.08, rail);
-        for (const q of samplePolyline(rl, 2.4, rand, 0)) B.box(q.x, y0 + 0.52, q.z, 0.07, 1.04, 0.07, post);
-        for (const q of samplePolyline(back, 6.5, rand, 0.4)) LP.box(q.x - q.nx * 0.08, y1 - 0.6, q.z - q.nz * 0.08, 0.5, 0.18, 0.5, lampC);
+        this.root.add(new THREE.Mesh(stripGeometry(rl, Y0, Y0 + 1.0, { uScale: 4 }), railMat));
+        if (!behind) for (let i = 0; i < rl.length - 1; i++) B.beam([rl[i][0], Y0 + 1.05, rl[i][1]], [rl[i + 1][0], Y0 + 1.05, rl[i + 1][1]], 0.08, rail);
+        for (const q of samplePolyline(rl, 2.4, rand, 0)) B.box(q.x, Y0 + 0.5, q.z, 0.07, 0.98, 0.07, post);
+        if (!behind && !isGlass) for (const q of samplePolyline(back, 6.5, rand, 0.4)) LP.box(q.x - q.nx * 0.08, Y1 - 0.6, q.z - q.nz * 0.08, 0.5, 0.18, 0.5, lampC);
         for (const q of samplePolyline(sectionLine(S, P.depth - bd + 0.45), 1.1, rand, 0.6)) {
           if (rand() > (VG.people ?? 0.35)) continue;
           const ry = Math.atan2(q.nx, q.nz), hgt = 1.0 + rand() * 0.15, k = color(shirts[(rand() * shirts.length) | 0]);
-          B.box(q.x, y0 + 0.45, q.z, 0.36, 0.9, 0.24, color('#2a2d33'), ry); B.box(q.x, y0 + 0.9 + hgt / 2 - 0.45, q.z, 0.46, hgt * 0.62, 0.28, k, ry);
-          B.box(q.x, y0 + 1.6 + (hgt - 1) * 0.6, q.z, 0.24, 0.26, 0.24, color(skin[(rand() * skin.length) | 0]), ry);
+          B.box(q.x, Y0 + 0.45, q.z, 0.36, 0.9, 0.24, color('#2a2d33'), ry); B.box(q.x, Y0 + 0.9 + hgt / 2 - 0.45, q.z, 0.46, hgt * 0.62, 0.28, k, ry);
+          B.box(q.x, Y0 + 1.6 + (hgt - 1) * 0.6, q.z, 0.24, 0.26, 0.24, color(skin[(rand() * skin.length) | 0]), ry);
         }
       }
       this.root.add(B.mesh());
@@ -836,7 +874,8 @@ export class ArenaView {
         const spacing = (R.standing ? 0.56 : 0.62) / density;
         for (const p of samplePolyline(sectionLine(S, R.d + R.depth * 0.55), spacing, rand, 0.14)) {
           if (S.kind === 'wedge' && S.stair && Math.abs(p.t - 0.5) < 0.06) continue; // scala al centro del cuneo
-          if (A.noAisles) { /* tribune continue, senza scale */ }
+          if (this.hasStairs(S)) { if (this.sectorAisleNear(S, p.t)) continue; }
+          else if (A.noAisles) { /* tribune continue, senza scale */ }
           else if (ent && ri >= ent.r0 && ri <= ent.r1 && ent.at(p.t)) continue; // ingressi gialli del secondo anello
           else if (this.isCurve(S) && R.standing) { const v = S.kind === 'straight' && this.vomitories(S); if (v && ri >= v.r0 && ri <= v.r1 && v.at(p.t)) continue; }
           else if (segLen && (R.tier === 0 || !A.upperAisles || Math.floor(p.t * S.len / segLen) % A.upperAisles === Math.floor(A.upperAisles / 2)) && (p.t * S.len) % segLen > segLen - 1.15) continue; // scale tra i settori
@@ -866,7 +905,7 @@ export class ArenaView {
       const l = readable(sectionLine(S, d, (G.from ?? 0) + 0.02, (G.to ?? 1) - 0.02)), len = Math.hypot(l.at(-1)[0] - l[0][0], l.at(-1)[1] - l[0][1]);
       this.awayLayer.add(new THREE.Mesh(stripGeometry(l, y0, y1, { uScale: len }), new THREE.MeshLambertMaterial({ map: bannerTexture(away, TA.name, 'Settore ospiti'), side: THREE.DoubleSide })));
       const rows = S.profile.rows.filter(R => R.tier === tier && R.index >= (G.rowFrom ?? 0)), net = new Mesher(), k = color('#cfd6dd');
-      if (rows.length) for (const t of [G.from ?? 0, G.to ?? 1]) {
+      if (rows.length && !G.glass) for (const t of [G.from ?? 0, G.to ?? 1]) {
         if (t <= 0.001 || t >= 0.999) continue;
         const a = sectionPoint(S, t, rows[0].d), b = sectionPoint(S, t, rows.at(-1).d + rows.at(-1).depth);
         if (A.guestWall) {
@@ -876,6 +915,39 @@ export class ArenaView {
         } else net.quad([a.x, rows[0].below, a.z], [b.x, rows.at(-1).h, b.z], [b.x, rows.at(-1).h + 2.4, b.z], [a.x, rows[0].h + 2.4, a.z], k);
       }
       if (!net.empty) this.awayLayer.add(A.guestWall ? net.mesh() : net.mesh({ transparent: true, opacity: 0.28, depthWrite: false }));
+      // guest.glass (Bienne): gabbia di vetro attorno agli ospiti. Lastre a gradini sui lati liberi del settore (dove non
+      // prosegue nell'angolo) e una parete dietro l'ultima fila, alte glassH sopra i gradini, con il profilo chiaro in cima.
+      if (G.glass) {
+        // join: estremo (t) dove il settore prosegue nell'angolo, lì niente lastra. Sui lati corti t = 0 è a nord, sui lunghi a ovest.
+        const hg = G.glassH ?? 2.6, GL = new Mesher(), FR = new Mesher(), gk = color('#8fc3e6'), fk = color('#eef2f5');
+        const C = G.corner ? sections.find(c => c.kind === 'arc' && ((c.end === G.side && c.side === G.corner) || (c.side === G.side && c.end === G.corner))) : null, tc = G.cornerTo ?? 1;
+        const startCorner = G.side === 'west' || G.side === 'east' ? G.corner === 'north' : G.corner === 'west';
+        const parts = [{ S, t0: G.from ?? 0, t1: G.to ?? 1, join: C ? (startCorner ? 0 : 1) : -1 }];
+        if (C) parts.push(C.end === G.side ? { S: C, t0: 0, t1: tc, join: 0 } : { S: C, t0: 1 - tc, t1: 1, join: 1 });
+        for (const { S: Q, t0, t1, join } of parts) {
+          const rr = Q.profile.rows.filter(R => R.tier === tier && R.index >= (G.rowFrom ?? 0)); if (!rr.length) continue;
+          // Dietro l'ultima fila solo se lì non c'è già il muro di fondo (cioè se sopra c'è ancora un anello o un corridoio).
+          const last = rr.at(-1), top = Q.profile.rows.at(-1) === last && !Q.profile.floors.some(f => f.d0 >= last.d + last.depth - 0.01), back = sectionLine(Q, last.d + last.depth + 0.05, t0, t1);
+          if (!top) for (let i = 0; i < back.length - 1; i++) {
+            const [a, b] = [back[i], back[i + 1]]; GL.quad([a[0], last.h, a[1]], [b[0], last.h, b[1]], [b[0], last.h + hg, b[1]], [a[0], last.h + hg, a[1]], gk);
+            FR.beam([a[0], last.h + hg, a[1]], [b[0], last.h + hg, b[1]], 0.1, fk);
+          }
+          if (!top) for (const q of samplePolyline(back, 1.8, () => 0.5, 0)) FR.beam([q.x, last.h, q.z], [q.x, last.h + hg, q.z], 0.07, fk);
+          // Davanti: vetro sul fronte della prima fila ospite, dal gradino sotto fino a hg sopra.
+          const first = rr[0], front = sectionLine(Q, first.d - 0.06, t0, t1);
+          for (let i = 0; i < front.length - 1; i++) { const [a, b] = [front[i], front[i + 1]]; GL.quad([a[0], first.below, a[1]], [b[0], first.below, b[1]], [b[0], first.h + hg, b[1]], [a[0], first.h + hg, a[1]], gk); FR.beam([a[0], first.h + hg, a[1]], [b[0], first.h + hg, b[1]], 0.1, fk); }
+          for (const q of samplePolyline(front, 1.8, () => 0.5, 0)) FR.beam([q.x, first.below, q.z], [q.x, first.h + hg, q.z], 0.07, fk);
+          for (const t of [t0, t1]) {
+            if (Math.abs(t - join) < 1e-3) continue;
+            for (const R of rr) {
+              const p0 = sectionPoint(Q, t, R.d), p1 = sectionPoint(Q, t, R.d + R.depth);
+              GL.quad([p0.x, R.h, p0.z], [p1.x, R.h, p1.z], [p1.x, R.h + hg, p1.z], [p0.x, R.h + hg, p0.z], gk);
+              FR.beam([p0.x, R.h + hg, p0.z], [p1.x, R.h + hg, p1.z], 0.1, fk); FR.beam([p0.x, R.h, p0.z], [p0.x, R.h + hg, p0.z], 0.07, fk);
+            }
+          }
+        }
+        if (!GL.empty) { this.awayLayer.add(GL.mesh({ transparent: true, opacity: 0.45, depthWrite: false, emissive: color('#2d5f86'), emissiveIntensity: 0.35 })); this.awayLayer.add(FR.mesh()); }
+      }
     }
     const bm = new Mesher(), kA = color(TA.primary), [x0, x1] = this.benchAwayRange, z1 = RINK.halfW + 2.6;
     bm.box((x0 + x1) / 2, 0.76, z1 - 0.09, x1 - x0, 1.52, 0.22, kA); bm.box((x0 + x1) / 2, 0.49, z1 - 0.55, x1 - x0, 0.11, 0.5, kA.clone().multiplyScalar(0.7));
