@@ -307,6 +307,16 @@ export class ArenaView {
       roofBase = Math.max(roofBase, P.top);
       // Curva in piedi di casa: niente scale tra i settori, solo due passaggi vicino al centro (A.home.aisles).
       const curveSec = this.isCurve(S), ent = this.entrances(S), vom = ent || (curveSec && S.kind === 'straight' ? this.vomitories(S) : null), cuts = [...zoneCuts(A, S), ...(vom ? vom.cuts : []), ...(S.kind === 'wedge' && S.stair ? [0.47, 0.53] : []), ...(A.vipBoxes && A.vipBoxes.side === S.key ? [A.vipBoxes.from ?? 0.1, A.vipBoxes.to ?? 0.9] : [])], upperFrom = st.upperSeats ? Math.floor(P.rows.length * st.upperSeats.from) : Infinity, upperC = st.upperSeats && color(st.upperSeats.color);
+      // Soletta orizzontale sotto il balcone: stessa quota dal labbro fino al fondo.
+      for (const R of P.rows.filter(row => row.first && P.spec?.tiers[row.tier]?.slab)) {
+        const y = R.h - P.spec.tiers[R.tier].slab;
+        const front = sectionLine(S, R.d), back = sectionLine(S, P.depth);
+        for (let i = 0; i < front.length - 1; i++) {
+          const [a, b, c, d] = [front[i], front[i + 1], back[i + 1], back[i]];
+          M.quad([a[0], y, a[1]], [d[0], y, d[1]], [c[0], y, c[1]], [b[0], y, b[1]], conc);
+          M.quad([a[0], y, a[1]], [b[0], y, b[1]], [b[0], R.h + 0.85, b[1]], [a[0], R.h + 0.85, a[1]], color('#c4c1ba'));
+        }
+      }
       P.rows.forEach((R, ri) => {
         // Lati con A.sectors: le scale stanno esattamente a 1/n, 2/n... (centrate), non sui tratti da 7 m; via i tagli troppo vicini.
         const sc = this.hasStairs(S) ? this.sectorBounds(S).flatMap(b => [b - 1.1 / S.len, b]) : null;
@@ -373,12 +383,12 @@ export class ArenaView {
             M.quad([ba[0], R.h, ba[1]], [bb[0], R.h, bb[1]], [bb[0], R.h + 0.42, bb[1]], [ba[0], R.h + 0.42, ba[1]], seat.clone().multiplyScalar(0.78));
           }
           if (up && !R.standing && ri % 3 === 2) M.beam([a[0], R.h + 1, a[1]], [b[0], R.h + 1, b[1]], 0.05, rails);
-          if (P.spec?.tiers[R.tier]?.overhang) {
+          if (P.spec?.tiers[R.tier]?.overhang && !P.spec.tiers[R.tier].slab) {
             const y = R.h - 0.35;
             M.quad([d[0], y, d[1]], [c[0], y, c[1]], [b[0], y, b[1]], [a[0], y, a[1]], conc);
           }
           const front = R.first && R.tier > 0 ? fasciaC : riser;
-          M.quad([a[0], R.below, a[1]], [b[0], R.below, b[1]], [b[0], R.h, b[1]], [a[0], R.h, a[1]], ri === 0 ? conc : front);
+          if (!(R.first && P.spec?.tiers[R.tier]?.slab)) M.quad([a[0], R.below, a[1]], [b[0], R.below, b[1]], [b[0], R.h, b[1]], [a[0], R.h, a[1]], ri === 0 ? conc : front);
         }
         // Sezioni appese (anello alto che gira l'angolo, Zurigo): facce di testa solo dalla fila sotto; il lato lungo che
         // prosegue nell'arco appeso (hangEnd) non ha la faccia piena sotto l'anello alto da quella parte.
@@ -725,6 +735,96 @@ export class ArenaView {
       this.cube = g; this.root.add(g);
     }
     const X = A.extras || {};
+    if (X.cornerLandings) {
+      const { ex, zn, zs, profiles } = this.layout;
+      const cement = color('#85898c'), edge = color('#c4c1ba'), metal = color('#505760');
+      const addScreen = (structure, screenWidth, base, back, ventCount) => {
+        const screenHeight = this.roofY - base;
+        const screenY = base + screenHeight / 2;
+        structure.box(0, screenY, back, screenWidth, screenHeight, 0.18, color('#323940'));
+        const divisions = Math.ceil(screenWidth / 0.7);
+        for (let bar = 0; bar <= divisions; bar++) {
+          const x = (screenWidth - 0.12) * (bar / divisions - 0.5);
+          structure.box(x, screenY, back + 0.20, 0.12, screenHeight, 0.16, color('#77818a'));
+        }
+        for (const fraction of [0.08, 0.52, 0.96]) {
+          structure.box(0, base + fraction * screenHeight, back + 0.34, screenWidth, 0.14, 0.12, metal);
+        }
+        const ventY = base + screenHeight * 0.69;
+        for (let i = 0; i < ventCount; i++) {
+          const x = screenWidth * ((i + 0.5) / ventCount - 0.5);
+          structure.box(x, ventY, back + 0.45, 3.4, 1.38, 0.2, edge);
+          structure.box(x, ventY, back + 0.58, 3.16, 1.14, 0.08, color('#252a2d'));
+          for (let slat = -2; slat <= 2; slat++) {
+            structure.box(x, ventY + slat * 0.2, back + 0.67, 3.04, 0.09, 0.13, metal);
+          }
+        }
+      };
+      for (const side of ['west', 'north', 'east']) {
+        const stand = sectionByKey(this.layout, side), profile = stand.profile;
+        const wall = new Mesher();
+        addScreen(wall, stand.len, profile.top, 0, Math.max(2, Math.round(stand.len / 11)));
+        const mesh = wall.mesh();
+        const depth = profile.depth - 0.16;
+        mesh.position.set(stand.ox + stand.nx * depth, 0, stand.oz + stand.nz * depth);
+        mesh.rotation.y = Math.atan2(-stand.nx, -stand.nz);
+        this.root.add(mesh);
+      }
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+        const end = profiles[sx < 0 ? 'west' : 'east'];
+        const balcony = end.rows.find(row => row.tier === 1).h;
+        const reach = Math.min(end.depth, profiles[sz < 0 ? 'north' : 'south'].depth) * 0.8;
+        const width = reach * Math.SQRT2, opening = 2.4, jamb = (width - opening) / 2;
+        const corner = new THREE.Group(), structure = new Mesher();
+        corner.position.set(sx * (ex + reach / 2), 0, sz * ((sz < 0 ? zn : zs) + reach / 2));
+        corner.rotation.y = Math.atan2(-sx, -sz);
+        for (const side of [-1, 1]) {
+          structure.box(side * (opening + jamb) / 2, balcony / 2, -0.12, jamb, balcony, 0.24, cement);
+          structure.beam([side, 1.1, -0.1], [side, 2.2, -2.2], 0.07, metal);
+        }
+        structure.box(0, (balcony + 3.6) / 2, -0.12, opening, balcony - 3.6, 0.24, cement);
+        structure.box(0, 2, -2.7, opening, 4, 0.15, color('#282c31'));
+        for (let step = 0; step < 7; step++) {
+          const h = (step + 1) * 0.17;
+          structure.box(0, h / 2, -0.2 - step * 0.35, opening, h, 0.35, cement);
+        }
+        structure.box(0, balcony - 0.2, -0.9, width, 0.4, 1.8, edge);
+        structure.beam([-width / 2, balcony + 1, 0], [width / 2, balcony + 1, 0], 0.08, metal);
+        for (let post = 0; post <= 8; post++) structure.box(width * (post / 8 - 0.5), balcony + 0.5, 0, 0.065, 1, 0.065, metal);
+        // Chiusura arretrata dietro il pianerottolo, fino alla linea del tetto.
+        const screenWidth = width + 2 * 1.92 + 0.4;
+        addScreen(structure, screenWidth, balcony, -1.92, 2);
+        corner.add(structure.mesh());
+        const lamp = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.13, 0.12), new THREE.MeshBasicMaterial({ color: '#ffdd9b' }));
+        lamp.position.set(0, 3.72, 0.07);
+        corner.add(lamp);
+        for (const side of [-1, 1]) {
+          const wallLight = lamp.clone();
+          wallLight.position.set(side * screenWidth * 0.34, balcony + 1.85, -1.4);
+          corner.add(wallLight);
+        }
+        this.root.add(corner);
+      }
+    }
+    if (X.suiteBays) {
+      const stand = sectionByKey(this.layout, 'south'), profile = stand.profile;
+      const lastRow = profile.rows.at(-1);
+      const z = stand.oz + lastRow.d + lastRow.depth + 0.05, y = lastRow.h + 2.25;
+      const width = stand.len / X.suiteBays, shell = new Mesher();
+      const concrete = color('#85898c'), steel = color('#393e44');
+      const glazing = new THREE.MeshBasicMaterial({ map: vipGlassTexture(), side: THREE.DoubleSide });
+      for (let i = 0; i < X.suiteBays; i++) {
+        const left = stand.ox - stand.len / 2 + i * width + 0.56, right = left + width - 1.12;
+        const x = (left + right) / 2;
+        shell.box(x, y, z + 0.65, right - left, 0.38, 2.5, concrete);
+        shell.box(x, y + 2.65, z + 0.65, right - left, 0.33, 2.5, steel);
+        for (const edge of [left, right]) shell.box(edge, y + 1.3, z + 0.65, 0.3, 2.6, 2.4, concrete);
+        const front = stripGeometry([[right, z - 0.4], [left, z - 0.4]], y + 0.2, y + 2.48, { uScale: right - left });
+        this.root.add(new THREE.Mesh(front, glazing));
+        if (i) shell.box(left - 0.56, (y + 2.9 + profile.top - 1) / 2, z + 0.4, 0.84, y + 3.9 - profile.top, 1.9, concrete);
+      }
+      this.root.add(shell.mesh());
+    }
     // Logge VIP (Zugo): vetrata continua sul muro di fondo dei rettilinei scelti (sides), sopra l'ultima fila e senza
     // pubblico sopra; sulle curve e negli angoli la stessa fascia prosegue come balconata: soletta sporgente, parapetto di
     // vetro con corrimano e montanti, muro scuro con porte illuminate e lampade, qualche spettatore appoggiato al parapetto.
