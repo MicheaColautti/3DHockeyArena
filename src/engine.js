@@ -146,7 +146,7 @@ export class ArenaView {
     if (mode === 'lineup') { const c = this.lineupCamera(); this.flyTo(c.pos, c.target, instant ? 0 : 1300, () => this.applyLineupFov()); if (instant) this.applyLineupFov(); }
     else if (mode === 'tour') { this.tour.nextLine = performance.now() + this.tour.lineEvery; if (!instant && prev !== 'intro') { const p = this.tourPose(this.tour.angle); this.flyTo(p.pos, p.target, 1300); } }
     else if (mode === 'intro') { this.intro.start = performance.now(); this.intro.entering = false; this.tween = null; }
-    else if (mode === 'explore') { this.controls.maxDistance = Math.max(this.extent.EX, this.extent.EZ); const v = this.views().tribuna; this.flyTo(v.pos, v.target, instant ? 0 : 1100); }
+    else if (mode === 'explore') { this.controls.maxDistance = Math.max(this.extent.EX, this.extent.EZ) * 3; const v = this.views().tribuna; this.flyTo(v.pos, v.target, instant ? 0 : 1100); }
     this.camera.updateProjectionMatrix();
     this.emit('mode', mode);
   }
@@ -448,7 +448,14 @@ export class ArenaView {
     sections.forEach(S => { if (S.hang || nicheEnd && (S.key === nicheEnd || (S.kind === 'arc' && S.wrap && S.end === nicheEnd))) return; const P = S.profile, l = sectionLine(S, P.depth); for (let i = 0; i < l.length - 1; i++) wallTo(l[i], l[i + 1], P.top, wallC); });
     const endCap = A.extras?.glassGables ? Y : Infinity, sideCap = A.extras?.glassGables === 'ends' ? Infinity : endCap;
     wallTo([-EX, -EZn], [EX, -EZn], 0, wc, sideCap); wallTo([-EX, EZs], [EX, EZs], 0, wc, sideCap); wallTo([-EX, -EZn], [-EX, EZs], 0, wc, endCap); wallTo([EX, -EZn], [EX, EZs], 0, wc, endCap);
-    this.root.add(W.mesh({ side: THREE.FrontSide }));
+    this.root.add(W.mesh());
+    const rim = new Mesher(), rimColor = wallC.clone().multiplyScalar(1.2);
+    const corners = [[-EX, -EZn], [EX, -EZn], [EX, EZs], [-EX, EZs]];
+    corners.forEach((a, i) => {
+      const b = corners[(i + 1) % corners.length];
+      rim.beam([a[0], Y + 0.18, a[1]], [b[0], Y + 0.18, b[1]], 0.46, rimColor, 0.36);
+    });
+    this.root.add(rim.mesh());
     if (A.extras?.timberWalls) {
       const T = new Mesher(), wood = color('#c99a62');
       const posts = (a, b) => { const len = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.round(len / 5.5); for (let i = 0; i <= n; i++) { const x = a[0] + (b[0] - a[0]) * i / n, z = a[1] + (b[1] - a[1]) * i / n, ix = -Math.sign(x) * 0.25 * (Math.abs(b[0] - a[0]) < 0.1), iz = -Math.sign(z) * 0.25 * (Math.abs(b[1] - a[1]) < 0.1); T.box(x + ix, Y / 2, z + iz, 0.45, Y, 0.45, wood); } for (const f of [0.35, 0.62, 0.86]) T.beam([a[0] - Math.sign(a[0]) * 0.2 * (Math.abs(b[0] - a[0]) < 0.1), Y * f, a[1] - Math.sign(a[1]) * 0.2 * (Math.abs(b[1] - a[1]) < 0.1)], [b[0] - Math.sign(b[0]) * 0.2 * (Math.abs(b[0] - a[0]) < 0.1), Y * f, b[1] - Math.sign(b[1]) * 0.2 * (Math.abs(b[1] - a[1]) < 0.1)], 0.3, wood); };
@@ -735,7 +742,7 @@ export class ArenaView {
       this.cube = g; this.root.add(g);
     }
     const X = A.extras || {};
-    if (X.cornerLandings) {
+    if (X.cornerLandings || X.upperScreenHeight) {
       const { ex, zn, zs, profiles } = this.layout;
       const cement = color('#85898c'), edge = color('#c4c1ba'), metal = color('#505760');
       const addScreen = (structure, screenWidth, base, back, ventCount) => {
@@ -760,17 +767,17 @@ export class ArenaView {
           }
         }
       };
-      for (const side of ['west', 'north', 'east']) {
+      for (const side of (X.upperScreenHeight ? ['west', 'north', 'east', 'south'] : ['west', 'north', 'east'])) {
         const stand = sectionByKey(this.layout, side), profile = stand.profile;
         const wall = new Mesher();
-        addScreen(wall, stand.len, profile.top, 0, Math.max(2, Math.round(stand.len / 11)));
+        addScreen(wall, stand.len, X.upperScreenHeight ? Math.max(profile.top, this.roofY - X.upperScreenHeight) : profile.top, 0, Math.max(2, Math.round(stand.len / 11)));
         const mesh = wall.mesh();
         const depth = profile.depth - 0.16;
         mesh.position.set(stand.ox + stand.nx * depth, 0, stand.oz + stand.nz * depth);
         mesh.rotation.y = Math.atan2(-stand.nx, -stand.nz);
         this.root.add(mesh);
       }
-      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      if (X.cornerLandings) for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
         const end = profiles[sx < 0 ? 'west' : 'east'];
         const balcony = end.rows.find(row => row.tier === 1).h;
         const reach = Math.min(end.depth, profiles[sz < 0 ? 'north' : 'south'].depth) * 0.8;
@@ -809,19 +816,22 @@ export class ArenaView {
     if (X.suiteBays) {
       const stand = sectionByKey(this.layout, 'south'), profile = stand.profile;
       const lastRow = profile.rows.at(-1);
-      const z = stand.oz + lastRow.d + lastRow.depth + 0.05, y = lastRow.h + 2.25;
+      const standBack = stand.oz + lastRow.d + lastRow.depth;
       const width = stand.len / X.suiteBays, shell = new Mesher();
       const concrete = color('#85898c'), steel = color('#393e44');
       const glazing = new THREE.MeshBasicMaterial({ map: vipGlassTexture(), side: THREE.DoubleSide });
-      for (let i = 0; i < X.suiteBays; i++) {
-        const left = stand.ox - stand.len / 2 + i * width + 0.56, right = left + width - 1.12;
-        const x = (left + right) / 2;
-        shell.box(x, y, z + 0.65, right - left, 0.38, 2.5, concrete);
-        shell.box(x, y + 2.65, z + 0.65, right - left, 0.33, 2.5, steel);
-        for (const edge of [left, right]) shell.box(edge, y + 1.3, z + 0.65, 0.3, 2.6, 2.4, concrete);
-        const front = stripGeometry([[right, z - 0.4], [left, z - 0.4]], y + 0.2, y + 2.48, { uScale: right - left });
-        this.root.add(new THREE.Mesh(front, glazing));
-        if (i) shell.box(left - 0.56, (y + 2.9 + profile.top - 1) / 2, z + 0.4, 0.84, y + 3.9 - profile.top, 1.9, concrete);
+      for (let level = 0; level < (X.suiteLevels ?? 1); level++) {
+        const z = standBack + 0.05 + level * 1.2, y = lastRow.h + 2.25 + level * 3.15;
+        for (let i = 0; i < X.suiteBays; i++) {
+          const left = stand.ox - stand.len / 2 + i * width + 0.56, right = left + width - 1.12;
+          const x = (left + right) / 2;
+          shell.box(x, y, z + 0.65, right - left, 0.38, 2.5, concrete);
+          shell.box(x, y + 2.65, z + 0.65, right - left, 0.33, 2.5, steel);
+          for (const edge of [left, right]) shell.box(edge, y + 1.3, z + 0.65, 0.3, 2.6, 2.4, concrete);
+          const front = stripGeometry([[right, z - 0.4], [left, z - 0.4]], y + 0.2, y + 2.48, { uScale: right - left });
+          this.root.add(new THREE.Mesh(front, glazing));
+          if (i) shell.box(left - 0.56, (y + 2.9 + profile.top - 1) / 2, z + 0.4, 0.84, y + 3.9 - profile.top, 1.9, concrete);
+        }
       }
       this.root.add(shell.mesh());
     }
@@ -1050,8 +1060,7 @@ export class ArenaView {
       });
     }
     this.buildFans(fans);
-    this.buildFlags(flags.home, home);
-    this.buildFlags(flags.away, away);
+    // Bandiere disattivate: coprivano la vista in sezione sulle curve.
     // Settore ospiti: striscione e reti di separazione.
     const G = A.guest, S = sectionByKey(this.layout, G.side);
     if (S) {
@@ -1237,14 +1246,15 @@ export class ArenaView {
     this.updateCamera(dt, now);
     // Tetto interno nascosto quando la telecamera è sopra o fuori; tetto esterno nascosto mentre si entra.
     const c = this.camera.position, E = this.extent, inside = Math.abs(c.x) < E.EX && c.z > -E.EZn && c.z < E.EZs;
-    if (this.ceiling) this.ceiling.visible = inside && c.y < this.roofY + (this.archRise || 0) - 0.3;
     // Nell'intro si vede solo l'esterno: l'interno (più alto dell'involucro in alcune arene) ricompare quando si entra.
     // Durante il volo d'ingresso l'interno compare solo quando la telecamera è scesa sotto il tetto esterno (quando il tetto
     // sparisce): prima le file più alte del pubblico sbucherebbero attraverso le coperture.
     const outsideOnly = this.mode === 'intro' && (!this.intro.entering || c.y > (this.outsideTop ?? 0) + 4);
     if (this.root) for (const ch of this.root.children) if (ch !== this.outside && !ch.isLight) ch.visible = !outsideOnly;
+    if (this.outside) this.outside.visible = this.mode === 'intro';
     if (this.awayLayer) this.awayLayer.visible = !outsideOnly;
-    if (this.outsideRoof) this.outsideRoof.visible = !(this.intro.entering && c.y < (this.outsideTop ?? 0) + 4);
+    if (this.outsideRoof) this.outsideRoof.visible = this.mode === 'intro' && !(this.intro.entering && c.y < (this.outsideTop ?? 0) + 4);
+    if (this.ceiling) this.ceiling.visible = this.mode !== 'explore' || (inside && c.y < this.roofY - 0.3);
     if (this.mode === 'intro' && this.intro.entering && this.tween && this.nightLevel < 1) {
       const u = ease(Math.min(1, (now - this.tween.start) / this.tween.ms));
       this.setLightLevel(this.nightLevel + (1 - this.nightLevel) * u, this.night.value * (1 - u));
@@ -1294,7 +1304,7 @@ export class ArenaView {
       this.controls.update();
       // La telecamera resta dentro l'arena: niente zoom oltre le pareti o sopra il soffitto.
       const c = this.camera.position, E = this.extent, before = c.clone();
-      this.keepInside(c);
+      c.y = Math.max(1.5, c.y);
       if (!c.equals(before)) this.camera.lookAt(this.controls.target);
     }
   }

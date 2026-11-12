@@ -149,7 +149,7 @@ export const ARENAS = {
     gaps: { side: 3.2, bench: 5.2, end: 4.4 },
     stands: {
       north: { base: 1.8, tiers: [seated(18, 0.46, 0.84), ring2({ rows: 44, rise: 0.42, depth: 0.56, standing: true })] },
-      south: { base: 1.8, tiers: [seated(18, 0.46, 0.84), ring2({ rows: 5, rise: 3.4, depth: 3.6, vip: true })] },
+      south: { base: 1.8, tiers: [seated(18, 0.46, 0.84), ring2(seated(18, 0.5, 0.8)), deck(3.6)] },
       west: { base: 1.8, tiers: [seated(18, 0.46, 0.84), ring2({ rows: 28, rise: 0.5, depth: 0.8 })] },
       east: { base: 1.8, tiers: [seated(18, 0.46, 0.84), ring2({ rows: 28, rise: 0.5, depth: 0.8 })] },
     },
@@ -157,6 +157,7 @@ export const ARENAS = {
     home: { side: 'north', tier: 1 },
     guest: { side: 'north', from: 0.86, to: 1, tier: 1 },
     entrances: { every: 15, color: '#f2c500', sides: ['north', 'west', 'east'], from: 6, rows: 4 },
+    extras: { suiteBays: 8, suiteLevels: 2, upperScreenHeight: 4.5 },
     upperAisles: 4, sideFlags: 0.03,
     led: { boards: true, rim: true },
     roof: { type: 'vault', rise: 0.08, clear: 8, color: '#cfd2d4', steel: '#6e5440', skylight: true },
