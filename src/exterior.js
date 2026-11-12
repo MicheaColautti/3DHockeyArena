@@ -300,7 +300,8 @@ export function octaRoof(A, EX, EZn, EZs) {
 export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = null, logo, time = { value: 0 }, glow = { value: 0 } }) {
   const E = A.exterior || {}, group = new THREE.Group(), rand = seeded(A.team + 'ext'), night = [];
   const nightMat = (mat, max = 1, prop = 'emissiveIntensity', min = 0) => { night.push({ mat, max: max - min, prop, min }); return mat; };
-  const pad = 1.2, fp = footprint(E.shape, -EX - pad, EX + pad, -EZn - pad, EZs + pad, E.octCut, E.octPad);
+  const rearExtension = E.rearExtension ?? 0;
+  const pad = 1.2, fp = footprint(E.shape, -EX - pad, EX + pad, -EZn - pad - rearExtension, EZs + pad, E.octCut, E.octPad);
   // Di norma i dintorni partono dal rettangolo interno; con la sala ottagonale di Davos (octaStar) dal suo ingombro vero.
   // Zurigo (curtain): il complesso si allunga oltre la sala con la sala d'allenamento a ovest e il corpo degli oblò e la terrazza a est.
   const CT = E.curtain, cW = CT?.west?.len ?? 0, cE = CT ? (CT.east?.len ?? 0) + (CT.terrace?.len ?? 0) : 0;
@@ -318,7 +319,7 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
   const EM = E.emmental, emE = EM ? (EM.round?.gap ?? 7) + 2 * (EM.round?.hx ?? 24) + 3 : 0, emN = EM ? (EM.block?.depth ?? 14) + 3 : 0;
   const SK = E.stimo, skN = SK ? (SK.block?.depth ?? 34) + 5 : 0, skE = SK ? 14 : 0;
   const TS = E.tissot, tsBox = TS ? (() => { const W = TS.width ?? 104, zc = (EZs - EZn) / 2, xj = -EX - pad - (TS.gap ?? 4); return { x0: xj - (TS.stadiumLen ?? 140), xj, x1: EX + pad + (TS.endPad ?? 4), z0: zc - W / 2, z1: zc + W / 2, zc }; })() : null;
-  const out = !!E.octaStar, X0 = out ? Math.min(...fp.map(q => q[0])) : Math.min(-EX - pad - cW - zgW, lsWing ? lsWing.x0 : Infinity, tsBox ? tsBox.x0 : Infinity), X1 = out ? Math.max(...fp.map(q => q[0])) : Math.max(EX + pad + cE + skE + emE, lsWing ? lsWing.x1 : -Infinity, tsBox ? tsBox.x1 : -Infinity), Z0 = out ? Math.min(...fp.map(q => q[1])) : Math.min(-EZn - pad - skN - emN, lsWing ? lsWing.z0 : Infinity, tsBox ? tsBox.z0 : Infinity), Z1 = out ? Math.max(...fp.map(q => q[1])) : Math.max(EZs + pad, lsWing ? lsWing.z1 + lsTip : -Infinity, tsBox ? tsBox.z1 : -Infinity);
+  const out = !!E.octaStar, X0 = out ? Math.min(...fp.map(q => q[0])) : Math.min(-EX - pad - cW - zgW, lsWing ? lsWing.x0 : Infinity, tsBox ? tsBox.x0 : Infinity), X1 = out ? Math.max(...fp.map(q => q[0])) : Math.max(EX + pad + cE + skE + emE, lsWing ? lsWing.x1 : -Infinity, tsBox ? tsBox.x1 : -Infinity), Z0 = out ? Math.min(...fp.map(q => q[1])) : Math.min(-EZn - pad - rearExtension - skN - emN, lsWing ? lsWing.z0 : Infinity, tsBox ? tsBox.z0 : Infinity), Z1 = out ? Math.max(...fp.map(q => q[1])) : Math.max(EZs + pad, lsWing ? lsWing.z1 + lsTip : -Infinity, tsBox ? tsBox.z1 : -Infinity);
   const H = E.height ?? (E.octaStar ? E.octaStar.base ?? 7 : E.roof === 'star' && E.eaves ? E.eaves : roofY + (E.parapet ?? 1.5));
   // Blocco uffici addossato al lato sud (Berna): il terreno attorno, il piazzale e i dintorni partono dal suo fronte.
   const BK = E.block, Zs = Z1 + (BK ? BK.depth ?? 18 : 0);
@@ -391,7 +392,7 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
   // Facciata (e fascia superiore sporgente, se c'è).
   const fac = facadeTextures(E), uScale = E.uScale ?? 18;
   const facMat = nightMat(new THREE.MeshLambertMaterial({ map: fac.day, emissiveMap: fac.night, emissive: color('#ffffff'), emissiveIntensity: 0, side: THREE.DoubleSide }), E.nightPower ?? 1.1);
-  let facade;
+  let facade, vernetsSign;
   if (E.podium) {
     // Basamento in cemento più largo (cortile e passaggi tutt'attorno, scale davanti), piano vetrato arretrato,
     // poi la scatola dell'arena che sporge sopra il vetro (Gottardo).
@@ -461,23 +462,50 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
     const roofBase = p => canopyHeight(p[0], p[1]) - E.canopy.thick + 0.06;
     const southSill = 3.35;
     facade.add(new THREE.Mesh(stripGeometry([[X0, Z0], [X1, Z0]], 0, roofBase, { uScale: 17 }), glass));
-    facade.add(new THREE.Mesh(stripGeometry([[X0, Z1], [X1, Z1]], 0, southSill, { uScale: 17 }), glass));
-    facade.add(new THREE.Mesh(
-      stripGeometry([[X0, Z1 + 0.08], [X1, Z1 + 0.08]], southSill, roofBase, { uScale: 17 }),
-      new THREE.MeshLambertMaterial({ color: color('#a5a39d'), side: THREE.DoubleSide })
-    ));
     // In sezione la lama bianca parte alta e sporgente sul piazzale
     // e si assottiglia verso il piede della vetrata laterale.
-    const nose = Z1 + E.canopy.out.south, foot = Z1 - (Z1 - Z0) * 0.49;
-    const sill = z => 1.1 + Math.max(0, (z - foot) / (nose - foot)) * (H * 0.83);
+    const nose = Z1 + E.canopy.out.south, foot = Z1 - (Z1 - Z0 - rearExtension) * 0.49;
+    const tipHeight = roofBase([X1, nose]) - 3.2;
+    const sill = z => 1.1 + Math.max(0, (z - foot) / (nose - foot)) * (tipHeight - 1.1);
+    // Il fronte di cemento unisce i due bordi inferiori delle lame laterali.
+    // La pensilina resta davanti al piede arretrato del cuneo.
+    const lowerTip = tipHeight - 4.4;
+    const wallFoot = foot + (nose - foot) * (southSill - 0.3) / (lowerTip - 0.3);
+    const concrete = color('#aaa8a2');
+    vernetsSign = { y: tipHeight - 2.1, z: nose + 0.08 };
+    const span = X1 - X0, center = (X0 + X1) / 2;
+    const lobbyH = 4.3, slab = 0.32;
+    // L'intradosso inclinato e la soletta si incontrano lungo un solo spigolo.
+    const joinZ = wallFoot + (nose - wallFoot) * (lobbyH + slab - southSill) / (lowerTip - southSill);
+    const porchDepth = (nose - wallFoot) * 0.16;
+    const porchZ = joinZ + porchDepth, lobbyZ = porchZ - 2;
+    const bayWidth = span / 9, frame = color('#626d73');
+    rim.box(center, lobbyH + slab / 2, (joinZ + porchZ) / 2, span - 0.24, slab, porchDepth, white);
+    const lobbyOutline = [[X0 + 0.25, joinZ], [X0 + 0.25, lobbyZ], [X1 - 0.25, lobbyZ], [X1 - 0.25, joinZ]];
+    facade.add(new THREE.Mesh(stripGeometry(lobbyOutline, 0.24, lobbyH, { uScale: 20 }), glass));
+    for (let bay = 0; bay <= 9; bay++) {
+      const x = X0 + 0.55 + (span - 1.1) * bay / 9;
+      rim.box(x, (lobbyH + 0.48) / 2, porchZ - 0.82, 1.05, lobbyH - 0.48, 1.2, white);
+      rim.box(x, 0.24, porchZ - 0.82, 1.42, 0.48, 1.55, concrete);
+      if (bay === 9) continue;
+      const doorX = X0 + (bay + 0.5) * bayWidth, doorZ = lobbyZ + 0.14;
+      for (const dx of [-1.8, 0, 1.8]) rim.box(doorX + dx, 1.8, doorZ, 0.16, 3.6, 0.19, frame);
+      rim.box(doorX, 3.6, doorZ, 3.76, 0.2, 0.19, white);
+      for (const dx of [-0.24, 0.24]) rim.box(doorX + dx, 1.35, doorZ + 0.15, 0.09, 0.7, 0.12, white);
+    }
+    rim.quad([X0, lobbyH + slab, joinZ], [X1, lobbyH + slab, joinZ],
+      [X1, lowerTip, nose], [X0, lowerTip, nose], concrete);
+    rim.quad([X0, lowerTip, nose], [X1, lowerTip, nose],
+      [X1, tipHeight, nose], [X0, tipHeight, nose], white);
+    facade.add(new THREE.Mesh(stripGeometry([[X0, nose], [X1, nose]], tipHeight, roofBase, { uScale: 17 }), glass));
     for (const [x, direction] of [[X0, -1], [X1, 1]]) {
       const face = x + direction * 0.2;
       const outline = [[x, Z0], [x, foot], [x, Z1], [x, nose]];
       facade.add(new THREE.Mesh(stripGeometry(outline, p => sill(p[1]), roofBase, { uScale: 17 }), glass));
       const high = sill(nose), low = sill(foot);
-      rim.quad([face, low, foot], [face, high, nose], [face, high - 2.1, nose], [face, 0.3, foot], white);
-      rim.quad([face, high - 2.1, nose], [face, 0.3, foot], [x - direction * 0.75, 0.3, foot], [x - direction * 0.75, high - 2.1, nose], white);
-      rim.quad([face, high - 2.1, nose], [face, high, nose], [x - direction * 0.75, high, nose], [x - direction * 0.75, high - 2.1, nose], white);
+      rim.quad([face, low, foot], [face, high, nose], [face, high - 4.4, nose], [face, 0.3, foot], white);
+      rim.quad([face, high - 4.4, nose], [face, 0.3, foot], [x - direction * 0.75, 0.3, foot], [x - direction * 0.75, high - 4.4, nose], white);
+      rim.quad([face, high - 4.4, nose], [face, high, nose], [x - direction * 0.75, high, nose], [x - direction * 0.75, high - 4.4, nose], white);
     }
     facade.add(rim.mesh());
     group.add(facade);
@@ -1280,7 +1308,7 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
   function canopyHeight(x, z) {
     const C = E.canopy || {}, o = C.out || {};
     const u = (x - X0 + (o.west || 0)) / (X1 - X0 + (o.west || 0) + (o.east || 0));
-    const v = (z - Z0 + (o.north || 0)) / (Z1 - Z0 + (o.north || 0) + (o.south || 0));
+    const v = (z - Z0 - rearExtension + (o.north || 0)) / (Z1 - Z0 - rearExtension + (o.north || 0) + (o.south || 0));
     return H + 0.3 + v * ((C.tilt || 0) + u * (C.lift || 0));
   }
 
@@ -1561,18 +1589,9 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
     if (E.vernets) {
       const stone = color('#d8d4cb'), metal = color('#717b80'), claret = color('#83354a');
       const width = X1 - X0;
-      // Una mensola per campata: piede sulla pensilina, gomito e puntone sotto lo sbalzo.
       for (let n = 0; n <= 14; n++) {
         const x = X0 + 1 + (width - 2) * n / 14, y = lift(x, z1) - th;
-        M.beam([x, 3.35, Z1 + 0.45], [x, y * 0.69, Z1 + 1.35], 0.82, stone, 1.05);
-        M.beam([x, y * 0.69, Z1 + 1.35], [x, y, z1 - 0.28], 1.05, stone, 1.2);
         if (n % 2) M.quad([x, y - 0.25, z1 - 0.5], [x, y - 0.25, z1 - 2.4], [x, y - 2.5, z1 - 1.75], [x, y - 2, z1 - 0.5], claret);
-      }
-      M.box(0, 3.5, Z1 + 1.6, width, 0.35, 3.6, stone);
-      for (let n = 0; n < 9; n++) {
-        const x = X0 + width * (n + 0.5) / 9;
-        for (const dx of [-1.5, 0, 1.5]) M.box(x + dx, 1.6, Z1 + 0.11, 0.12, 3.2, 0.18, metal);
-        M.box(x, 3.1, Z1 + 0.12, 3.15, 0.18, 0.2, metal);
       }
       for (const x of [X0 + 14, X1 - 14]) {
         M.box(x, 3.25, Z0 - 1.3, 10, 0.28, 3, metal);
@@ -1622,6 +1641,10 @@ export function buildExterior(A, { EX, EZn, EZs, roofY, wallY = roofY, ceilAt = 
   // Insegna sul lato principale (sud).
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(30, 4.7), new THREE.MeshBasicMaterial({ map: signTexture(A, logo), transparent: true }));
   sign.position.set(E.signX ?? 0, E.signAt ? H * E.signAt : Math.min(H - 3, 9), Z1 + (E.overhang ? E.overhang.out ?? 2.2 : 0) + 0.15); group.add(sign);
+  if (vernetsSign) {
+    sign.scale.setScalar(0.82);
+    sign.position.set(0, vernetsSign.y, vernetsSign.z);
+  }
   if (E.octaStar) sign.position.set(0, Math.max(2.4, H * 0.45), Z1 + 0.2);
   if (E.stack) {
     // Friburgo: scritta BCF ARENA sulla scatola alta, a sinistra del fronte, e sul risvolto della testata est.
